@@ -13,4 +13,13 @@ class conv_test extends uvm_test;
         end
         `uvm_info("CONV_TEST", "connect to vif", UVM_LOW);
     endfunction
+
+    conv_basic_sequence seq;
+
+    task run_phase(uvm_phase phase);
+    phase.raise_objection(this);
+    seq = conv_basic_sequence::type_id::create("seq");
+    seq.start(null);
+    phase.drop_objection(this);
+    endtask
 endclass
