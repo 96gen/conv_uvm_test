@@ -1,6 +1,6 @@
 class conv_test extends uvm_test;
     virtual CONV_IF vif;
-    conv_sequencer seqr;
+    conv_env env;
     conv_basic_sequence seq;
     `uvm_component_utils(conv_test);
 
@@ -15,12 +15,12 @@ class conv_test extends uvm_test;
         end
         `uvm_info("CONV_TEST", "connect to vif", UVM_LOW);
         seq = conv_basic_sequence::type_id::create("seq");
-        seqr = conv_sequencer::type_id::create("seqr", this);
+        env = conv_env::type_id::create("env", this);
     endfunction
 
     task run_phase(uvm_phase phase);
         phase.raise_objection(this);
-        seq.start(seqr);
+        seq.start(env.agent.seqr);
         phase.drop_objection(this);
     endtask
 endclass

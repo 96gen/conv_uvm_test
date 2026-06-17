@@ -4,5 +4,7 @@ package conv_pkg;
     `include "conv_seq_item.sv"
     `include "conv_basic_sequence.sv"
     `include "conv_sequencer.sv"
+    `include "conv_agent.sv"
+    `include "conv_env.sv"
     `include "conv_test.sv"
 endpackage
