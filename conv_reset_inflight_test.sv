@@ -1,0 +1,2 @@
+class conv_reset_inflight_test extends conv_test;
+endclass
