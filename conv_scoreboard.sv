@@ -12,6 +12,11 @@ class conv_scoreboard extends uvm_component;
     endfunction
 
     function void write(conv_mem_wr_tr tr);
-        `uvm_info("CONV_SCOREBOARD", "received transaction", UVM_LOW)
+        if (!tr.ready_seen) begin
+            `uvm_error("CONV_SCOREBOARD", "expected ready_seen transaction")
+        end
+        else begin
+            `uvm_info("CONV_SCOREBOARD", "ready transaction check passed", UVM_LOW)
+        end
     endfunction
 endclass
