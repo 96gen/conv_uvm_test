@@ -18,20 +18,24 @@ class conv_driver extends uvm_driver #(conv_seq_item);
         conv_seq_item req;
         forever begin
             seq_item_port.get_next_item(req);
-            `uvm_info("CONV_DRIVER", "get seq_item", UVM_LOW);
-            basic_phase();
+            `uvm_info("CONV_DRIVER",
+                $sformatf("drive item reset_cycles=%0d ready_delay_cycles=%0d ready_pulse_cycles=%0d",
+                req.reset_cycles, req.ready_delay_cycles, req.ready_pulse_cycles),
+            UVM_LOW)
+            basic_phase(req);
             seq_item_port.item_done();
             `uvm_info("CONV_DRIVER", "item done", UVM_LOW);
         end 
     endtask
 
-    task basic_phase();
+    task basic_phase(conv_seq_item req);
         vif.reset <= 1'b1;
-        repeat (10) @(posedge vif.clk);
+        repeat (req.reset_cycles) @(posedge vif.clk);
         vif.reset <= 1'b0;
         `uvm_info("CONV_DRIVER", "reset done", UVM_LOW);
+        repeat (req.ready_delay_cycles) @(posedge vif.clk);
         vif.ready <= 1'b1;
-        @(posedge vif.clk);
+        repeat (req.ready_pulse_cycles) @(posedge vif.clk);
         vif.ready <= 1'b0;
         `uvm_info("CONV_DRIVER", "ready pulse done", UVM_LOW);
     endtask
