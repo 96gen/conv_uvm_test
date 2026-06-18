@@ -22,6 +22,6 @@ module top();
     );
     initial begin
         uvm_config_db#(virtual CONV_IF)::set(null, "*", "vif", vif);
-        run_test("conv_test");
+        run_test();
     end
 endmodule

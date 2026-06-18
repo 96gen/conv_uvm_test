@@ -11,4 +11,5 @@ package conv_pkg;
     `include "conv_agent.sv"
     `include "conv_env.sv"
     `include "conv_test.sv"
+    `include "conv_bad_ready_test.sv"
 endpackage

@@ -2,6 +2,7 @@ class conv_monitor extends uvm_monitor;
     virtual CONV_IF vif;
     `uvm_component_utils(conv_monitor);
     uvm_analysis_port #(conv_mem_wr_tr) ap;
+    bit inject_bad_ready_tr;
 
     function new(string name = "conv_monitor", uvm_component parent = null);
         super.new(name, parent);
@@ -14,6 +15,7 @@ class conv_monitor extends uvm_monitor;
         end
         `uvm_info("CONV_MONITOR", "got virtual interface", UVM_LOW)
         ap = new("ap", this);
+        void'(uvm_config_db#(bit)::get(this, "", "inject_bad_ready_tr", inject_bad_ready_tr));
     endfunction
 
     task run_phase(uvm_phase phase);
@@ -23,7 +25,7 @@ class conv_monitor extends uvm_monitor;
             if(vif.ready) begin
                 conv_mem_wr_tr tr;
                 tr = conv_mem_wr_tr::type_id::create("tr");
-                tr.ready_seen = 1'b1;
+                tr.ready_seen = inject_bad_ready_tr ? 1'b0 : 1'b1;
                 ap.write(tr);
                 `uvm_info("CONV_MONITOR", "write transaction", UVM_LOW)
             end
