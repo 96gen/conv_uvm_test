@@ -1,4 +1,7 @@
 work/
+smoke_*/
+logs/
+reports/
 transcript
 *.wlf
 *.mti

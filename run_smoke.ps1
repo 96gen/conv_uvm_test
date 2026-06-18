@@ -1,0 +1,158 @@
+param(
+  [ValidateSet("all", "clean", "negative")]
+  [string]$Test = "all"
+)
+
+$ErrorActionPreference = "Stop"
+
+$Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$UvmSrc = "C:\intelFPGA_lite\18.1\modelsim_ase\verilog_src\uvm-1.2\src"
+$RunStamp = (Get-Date).ToString("yyyyMMdd_HHmmss")
+$ReportDir = Join-Path $Root ("reports\smoke_{0}" -f $RunStamp)
+$Lib = "smoke_$RunStamp"
+
+New-Item -ItemType Directory -Force -Path $ReportDir | Out-Null
+Set-Location $Root
+
+function Has-Pattern {
+  param(
+    [string[]]$Lines,
+    [string]$Pattern
+  )
+  return (($Lines | Select-String -Pattern $Pattern).Count -gt 0)
+}
+
+function Run-Cmd {
+  param(
+    [string]$Log,
+    [scriptblock]$Command
+  )
+  $out = & $Command 2>&1
+  $code = $LASTEXITCODE
+  $out | Set-Content -Path $Log
+  return [pscustomobject]@{ Lines = $out; ExitCode = $code; Log = $Log }
+}
+
+function Compile-Smoke {
+  $compileLog = Join-Path $ReportDir "compile.log"
+
+  $vlib = Run-Cmd -Log $compileLog -Command { vlib $Lib }
+  if ($vlib.ExitCode -ne 0) {
+    throw "vlib failed; see $compileLog"
+  }
+
+  $args = @(
+    "-sv",
+    "-timescale", "1ns/1ps",
+    "-work", $Lib,
+    "+define+UVM_NO_DPI",
+    "+incdir+$UvmSrc",
+    (Join-Path $UvmSrc "uvm_pkg.sv"),
+    "conv_if.sv",
+    "conv_pkg.sv",
+    "CONV.v",
+    "top.sv"
+  )
+
+  $out = & vlog @args 2>&1
+  $code = $LASTEXITCODE
+  $out | Add-Content -Path $compileLog
+
+  if ($code -ne 0 -or !(Has-Pattern $out "Errors:\s*0")) {
+    throw "compile failed; see $compileLog"
+  }
+}
+
+function Run-SmokeCase {
+  param(
+    [string]$Name,
+    [string]$UvmTest,
+    [int]$ExpectedErrors,
+    [string[]]$RequiredPatterns
+  )
+
+  $logName = ($Name -replace "\s+", "_").ToLower()
+  $simLog = Join-Path $ReportDir "$logName.log"
+  $result = Run-Cmd -Log $simLog -Command {
+    vsim -suppress 19 -suppress 8785 -c -lib $Lib top +UVM_NO_RELNOTES "+UVM_TESTNAME=$UvmTest" -do "run -all; quit -f"
+  }
+
+  $errorOk = Has-Pattern $result.Lines ("UVM_ERROR\s*:\s*{0}" -f $ExpectedErrors)
+  $fatalOk = Has-Pattern $result.Lines "UVM_FATAL\s*:\s*0"
+  $patternsOk = $true
+  foreach ($pattern in $RequiredPatterns) {
+    if (!(Has-Pattern $result.Lines $pattern)) {
+      $patternsOk = $false
+    }
+  }
+
+  if ($result.ExitCode -eq 0 -and $errorOk -and $fatalOk -and $patternsOk) {
+    Write-Host "[PASS] $Name"
+    return $true
+  }
+
+  Write-Host "[FAIL] $Name"
+  Write-Host "       log: $simLog"
+  return $false
+}
+
+function Move-LibraryToReport {
+  $dest = Join-Path $ReportDir "work"
+  if (Test-Path -LiteralPath $Lib) {
+    Move-Item -LiteralPath $Lib -Destination $dest -Force
+  }
+}
+
+$cases = @(
+  [pscustomobject]@{
+    Key = "clean"
+    Name = "clean smoke"
+    UvmTest = "conv_test"
+    ExpectedErrors = 0
+    RequiredPatterns = @(
+      "ready transaction check passed",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
+    Key = "negative"
+    Name = "negative checker smoke"
+    UvmTest = "conv_bad_ready_test"
+    ExpectedErrors = 1
+    RequiredPatterns = @(
+      "expected ready_seen transaction",
+      "UVM_FATAL\s*:\s*0"
+    )
+  }
+)
+
+Compile-Smoke
+
+$failed = 0
+foreach ($case in $cases) {
+  if ($Test -ne "all" -and $Test -ne $case.Key) {
+    continue
+  }
+
+  $ok = Run-SmokeCase `
+    -Name $case.Name `
+    -UvmTest $case.UvmTest `
+    -ExpectedErrors $case.ExpectedErrors `
+    -RequiredPatterns $case.RequiredPatterns
+
+  if (!$ok) {
+    $failed++
+  }
+}
+
+Move-LibraryToReport
+
+Write-Host ""
+Write-Host "Report: $ReportDir"
+
+if ($failed -ne 0) {
+  exit 1
+}
+
+Write-Host "[PASS] smoke regression completed"
+exit 0
