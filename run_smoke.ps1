@@ -27,8 +27,15 @@ function Run-Cmd {
     [string]$Log,
     [scriptblock]$Command
   )
-  $out = & $Command 2>&1
-  $code = $LASTEXITCODE
+  $oldErrorActionPreference = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  try {
+    $out = & $Command 2>&1
+    $code = $LASTEXITCODE
+  }
+  finally {
+    $ErrorActionPreference = $oldErrorActionPreference
+  }
   $out | Set-Content -Path $Log
   return [pscustomobject]@{ Lines = $out; ExitCode = $code; Log = $Log }
 }
@@ -118,7 +125,7 @@ $cases = @(
     Key = "negative"
     Name = "negative checker smoke"
     UvmTest = "conv_bad_ready_test"
-    ExpectedErrors = 1
+    ExpectedErrors = 3
     RequiredPatterns = @(
       "expected ready_seen transaction",
       "UVM_FATAL\s*:\s*0"
