@@ -8,6 +8,7 @@ package conv_pkg;
     `include "conv_mem_wr_tr.sv"
     `include "conv_monitor.sv"
     `include "conv_scoreboard.sv"
+    `include "conv_coverage.sv"
     `include "conv_agent.sv"
     `include "conv_env.sv"
     `include "conv_test.sv"
