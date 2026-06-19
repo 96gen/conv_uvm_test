@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("all", "clean", "negative")]
+  [ValidateSet("all", "clean", "short", "long", "negative")]
   [string]$Test = "all"
 )
 
@@ -117,7 +117,30 @@ $cases = @(
     UvmTest = "conv_test"
     ExpectedErrors = 0
     RequiredPatterns = @(
-      "ready transaction check passed",
+      "received expected ready count=3",
+      "ready_seen_count=3",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
+    Key = "short"
+    Name = "short scenario smoke"
+    UvmTest = "conv_short_ready_test"
+    ExpectedErrors = 0
+    RequiredPatterns = @(
+      "received expected ready count=1",
+      "ready_seen_count=1",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
+    Key = "long"
+    Name = "long scenario smoke"
+    UvmTest = "conv_long_ready_test"
+    ExpectedErrors = 0
+    RequiredPatterns = @(
+      "received expected ready count=5",
+      "ready_seen_count=5",
       "UVM_FATAL\s*:\s*0"
     )
   },
@@ -128,6 +151,8 @@ $cases = @(
     ExpectedErrors = 3
     RequiredPatterns = @(
       "expected ready_seen transaction",
+      "received expected ready count=3",
+      "ready_seen_count=0",
       "UVM_FATAL\s*:\s*0"
     )
   }

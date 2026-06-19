@@ -7,9 +7,11 @@ class conv_basic_sequence extends uvm_sequence #(conv_seq_item);
     endfunction
 
         task body();
-            send_item(10, 0, 1);
-            send_item(20, 1, 2);
-            send_item(30, 2, 3);
+            int item_count = 3;
+            void'(uvm_config_db#(int)::get(get_sequencer(), "", "item_count", item_count));
+            for (int i = 0; i < item_count; i++) begin
+                send_item(10 + i*10, i, i+1);
+            end
         endtask
 
         task send_item(

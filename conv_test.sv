@@ -2,6 +2,8 @@ class conv_test extends uvm_test;
     virtual CONV_IF vif;
     conv_env env;
     conv_basic_sequence seq;
+    int item_count = 3;
+    int expected_ready_count = 3;
     `uvm_component_utils(conv_test);
 
     function new(string name = "conv_test", uvm_component parent = null);
@@ -14,6 +16,8 @@ class conv_test extends uvm_test;
             `uvm_fatal("CONV_TEST", "cannot get vif");
         end
         `uvm_info("CONV_TEST", "connect to vif", UVM_LOW);
+        uvm_config_db#(int)::set(this, "*", "item_count", item_count);
+        uvm_config_db#(int)::set(this, "*", "expected_ready_count", expected_ready_count);
         seq = conv_basic_sequence::type_id::create("seq");
         env = conv_env::type_id::create("env", this);
     endfunction
