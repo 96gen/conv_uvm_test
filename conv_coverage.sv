@@ -8,8 +8,17 @@ class conv_coverage extends uvm_subscriber #(conv_mem_wr_tr);
 
     function void write(conv_mem_wr_tr t);
         if (t.ready_seen) begin
-            ready_seen_cnt = ready_seen_cnt + 1;
-             `uvm_info("CONV_COVERAGE", "sampled ready transaction", UVM_LOW)
+            ready_seen_cnt++;
+            `uvm_info("CONV_COVERAGE",
+                $sformatf("sampled ready transaction count=%0d", ready_seen_cnt),
+                UVM_LOW)
         end
+    endfunction
+
+    function void report_phase(uvm_phase phase);
+        super.report_phase(phase);
+        `uvm_info("CONV_COVERAGE",
+            $sformatf("ready_seen_count=%0d", ready_seen_cnt),
+            UVM_LOW)
     endfunction
 endclass
