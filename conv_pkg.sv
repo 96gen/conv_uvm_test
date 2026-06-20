@@ -6,6 +6,7 @@ package conv_pkg;
     `include "conv_sequencer.sv"
     `include "conv_driver.sv"
     `include "conv_mem_wr_tr.sv"
+    `include "conv_l0_mem_model.sv"
     `include "conv_monitor.sv"
     `include "conv_scoreboard.sv"
     `include "conv_coverage.sv"
@@ -19,4 +20,5 @@ package conv_pkg;
     `include "conv_dut_input_drive_test.sv"
     `include "conv_layer0_write_smoke_test.sv"
     `include "conv_layer1_path_smoke_test.sv"
+    `include "conv_l0_mem_feedback_smoke_test.sv"
 endpackage

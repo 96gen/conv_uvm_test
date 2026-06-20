@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "negative")]
+  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "negative")]
   [string]$Test = "all"
 )
 
@@ -196,6 +196,25 @@ $cases = @(
       "opened dat file cnn_sti.dat",
       "drive idata",
       "observed layer0 write",
+      "observed layer0 read",
+      "observed layer1 write",
+      "observed expected layer0 write count",
+      "observed expected layer0 read count",
+      "observed expected layer1 write count",
+      "layer0_read_count=",
+      "layer1_write_count=",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
+    Key = "l0_mem_feedback"
+    Name = "l0 mem feedback smoke"
+    UvmTest = "conv_l0_mem_feedback_smoke_test"
+    ExpectedErrors = 0
+    RequiredPatterns = @(
+      "opened dat file cnn_sti.dat",
+      "observed layer0 write",
+      "served layer0 read",
       "observed layer0 read",
       "observed layer1 write",
       "observed expected layer0 write count",

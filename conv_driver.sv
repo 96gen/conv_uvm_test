@@ -116,7 +116,6 @@ class conv_driver extends uvm_driver #(conv_seq_item);
         for (int cycle = 0; cycle < req.dut_drive_cycles; cycle++) begin
             @(posedge vif.clk);
             vif.idata <= img_mem[vif.iaddr];
-            vif.cdata_rd <= 20'd0;
             if ((req.dut_drive_log_stride == 0) || ((cycle % req.dut_drive_log_stride) == 0)) begin
                 `uvm_info("CONV_DRIVER", $sformatf("drive idata addr=%0d data=%0h", vif.iaddr, img_mem[vif.iaddr]), UVM_LOW)
             end
