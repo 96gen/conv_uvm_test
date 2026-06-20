@@ -8,6 +8,7 @@ class conv_test extends uvm_test;
     int unsigned dat_sample_words;
     bit drive_dut_input = 0;
     int unsigned dut_drive_cycles = 0;
+    int expected_l0_write_min = 0;
     `uvm_component_utils(conv_test);
 
     function new(string name = "conv_test", uvm_component parent = null);
@@ -26,6 +27,7 @@ class conv_test extends uvm_test;
         uvm_config_db#(int unsigned)::set(this, "*", "dat_sample_words", dat_sample_words);
         uvm_config_db#(bit)::set(this, "*", "drive_dut_input", drive_dut_input);
         uvm_config_db#(int unsigned)::set(this, "*", "dut_drive_cycles", dut_drive_cycles);
+        uvm_config_db#(int)::set(this, "*", "expected_l0_write_min", expected_l0_write_min);
         seq = conv_basic_sequence::type_id::create("seq");
         env = conv_env::type_id::create("env", this);
     endfunction

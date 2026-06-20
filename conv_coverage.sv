@@ -1,6 +1,7 @@
 class conv_coverage extends uvm_subscriber #(conv_mem_wr_tr);
     `uvm_component_utils(conv_coverage);
     int ready_seen_cnt = 0;
+    int layer0_write_count = 0;
 
     function new(string name = "conv_coverage", uvm_component parent = null);
         super.new(name, parent);
@@ -13,12 +14,21 @@ class conv_coverage extends uvm_subscriber #(conv_mem_wr_tr);
                 $sformatf("sampled ready transaction count=%0d", ready_seen_cnt),
                 UVM_LOW)
         end
+        if (t.write_seen && t.is_layer0_write) begin
+            layer0_write_count++;
+            `uvm_info("CONV_COVERAGE",
+                $sformatf("sampled layer0 write count=%0d", layer0_write_count),
+                UVM_LOW)
+        end
     endfunction
 
     function void report_phase(uvm_phase phase);
         super.report_phase(phase);
         `uvm_info("CONV_COVERAGE",
             $sformatf("ready_seen_count=%0d", ready_seen_cnt),
+            UVM_LOW)
+        `uvm_info("CONV_COVERAGE",
+            $sformatf("layer0_write_count=%0d", layer0_write_count),
             UVM_LOW)
     endfunction
 endclass

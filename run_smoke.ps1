@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "negative")]
+  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "negative")]
   [string]$Test = "all"
 )
 
@@ -169,6 +169,21 @@ $cases = @(
       "observed busy high",
       "received expected ready count=1",
       "ready_seen_count=1",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
+    Key = "layer0_write"
+    Name = "layer0 write smoke"
+    UvmTest = "conv_layer0_write_smoke_test"
+    ExpectedErrors = 0
+    RequiredPatterns = @(
+      "opened dat file cnn_sti.dat",
+      "drive idata",
+      "observed layer0 write",
+      "layer0 write check passed",
+      "observed expected layer0 write count",
+      "layer0_write_count=",
       "UVM_FATAL\s*:\s*0"
     )
   },

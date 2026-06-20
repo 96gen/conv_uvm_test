@@ -35,6 +35,23 @@ class conv_monitor extends uvm_monitor;
             if(vif.busy) begin
                 `uvm_info("CONV_MONITOR", "observed busy high", UVM_LOW)
             end
+            if (vif.cwr) begin
+                conv_mem_wr_tr tr;
+                tr = conv_mem_wr_tr::type_id::create("tr");
+                tr.write_seen = 1'b1;
+                tr.csel = vif.csel;
+                tr.caddr_wr = vif.caddr_wr;
+                tr.cdata_wr = vif.cdata_wr;
+                tr.is_layer0_write = (vif.csel == 3'b001);
+                ap.write(tr);
+
+                if (tr.is_layer0_write) begin
+                    `uvm_info("CONV_MONITOR",
+                        $sformatf("observed layer0 write addr=%0d data=%0h",
+                                tr.caddr_wr, tr.cdata_wr),
+                        UVM_LOW)
+                end
+            end
         end
     endtask
 endclass
