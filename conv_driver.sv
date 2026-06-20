@@ -25,6 +25,9 @@ class conv_driver extends uvm_driver #(conv_seq_item);
             basic_phase(req);
             seq_item_port.item_done();
             `uvm_info("CONV_DRIVER", "item done", UVM_LOW);
+            if(req.img_file != "") begin
+                read_dat_sample(req);
+            end
         end 
     endtask
 
@@ -38,5 +41,37 @@ class conv_driver extends uvm_driver #(conv_seq_item);
         repeat (req.ready_pulse_cycles) @(posedge vif.clk);
         vif.ready <= 1'b0;
         `uvm_info("CONV_DRIVER", "ready pulse done", UVM_LOW);
+    endtask
+
+    task read_dat_sample(conv_seq_item req);
+        int fd;
+        int code;
+        int unsigned word;
+        string line;
+
+        fd = $fopen(req.img_file, "r");
+        if (fd == 0) begin
+            `uvm_error("CONV_DRIVER", $sformatf("cannot open dat file %s", req.img_file))
+            return;
+        end
+
+        `uvm_info("CONV_DRIVER", $sformatf("opened dat file %s", req.img_file), UVM_LOW)
+
+        for (int i = 0; i < req.dat_sample_words; i++) begin
+            if (!$fgets(line, fd)) begin
+                `uvm_error("CONV_DRIVER", $sformatf("dat file ended early at sample %0d", i))
+                break;
+            end
+
+            code = $sscanf(line, "%h", word);
+            if (code != 1) begin
+                `uvm_error("CONV_DRIVER", $sformatf("cannot parse dat line %0d: %s", i, line))
+            end
+            else begin
+                `uvm_info("CONV_DRIVER", $sformatf("read dat sample[%0d]=%0h", i, word), UVM_LOW)
+            end
+        end
+
+        $fclose(fd);
     endtask
 endclass

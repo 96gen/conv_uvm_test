@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("all", "clean", "short", "long", "negative")]
+  [ValidateSet("all", "clean", "short", "long", "dat", "negative")]
   [string]$Test = "all"
 )
 
@@ -141,6 +141,19 @@ $cases = @(
     RequiredPatterns = @(
       "received expected ready count=5",
       "ready_seen_count=5",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
+    Key = "dat"
+    Name = "dat plumbing smoke"
+    UvmTest = "conv_dat_smoke_test"
+    ExpectedErrors = 0
+    RequiredPatterns = @(
+      "opened dat file cnn_sti.dat",
+      "read dat sample",
+      "received expected ready count=1",
+      "ready_seen_count=1",
       "UVM_FATAL\s*:\s*0"
     )
   },

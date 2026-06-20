@@ -15,4 +15,5 @@ package conv_pkg;
     `include "conv_bad_ready_test.sv"
     `include "conv_short_ready_test.sv"
     `include "conv_long_ready_test.sv"
+    `include "conv_dat_smoke_test.sv"
 endpackage

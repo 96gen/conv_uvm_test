@@ -4,6 +4,8 @@ class conv_test extends uvm_test;
     conv_basic_sequence seq;
     int item_count = 3;
     int expected_ready_count = 3;
+    string img_file;
+    int unsigned dat_sample_words;
     `uvm_component_utils(conv_test);
 
     function new(string name = "conv_test", uvm_component parent = null);
@@ -18,6 +20,8 @@ class conv_test extends uvm_test;
         `uvm_info("CONV_TEST", "connect to vif", UVM_LOW);
         uvm_config_db#(int)::set(this, "*", "item_count", item_count);
         uvm_config_db#(int)::set(this, "*", "expected_ready_count", expected_ready_count);
+        uvm_config_db#(string)::set(this, "*", "img_file", img_file);
+        uvm_config_db#(int unsigned)::set(this, "*", "dat_sample_words", dat_sample_words);
         seq = conv_basic_sequence::type_id::create("seq");
         env = conv_env::type_id::create("env", this);
     endfunction

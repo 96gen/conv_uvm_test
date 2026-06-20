@@ -1,14 +1,19 @@
 class conv_basic_sequence extends uvm_sequence #(conv_seq_item);
     `uvm_object_utils(conv_basic_sequence)
     conv_seq_item req;
+    int item_count = 3;
+    string img_file;
+    int unsigned dat_sample_words;
 
     function new(string name = "conv_basic_sequence");
         super.new(name);
     endfunction
 
         task body();
-            int item_count = 3;
             void'(uvm_config_db#(int)::get(get_sequencer(), "", "item_count", item_count));
+            void'(uvm_config_db#(string)::get(get_sequencer(), "", "img_file", img_file));
+            void'(uvm_config_db#(int unsigned)::get(get_sequencer(), "", "dat_sample_words", dat_sample_words));
+
             for (int i = 0; i < item_count; i++) begin
                 send_item(10 + i*10, i, i+1);
             end
@@ -25,6 +30,8 @@ class conv_basic_sequence extends uvm_sequence #(conv_seq_item);
             req.ready_delay_cycles = ready_delay_cycles;
             req.ready_pulse_cycles = ready_pulse_cycles;
             req.expect_ready_seen = 1;
+            req.img_file = img_file;
+            req.dat_sample_words = dat_sample_words;
             finish_item(req);
 
             `uvm_info("CONV_SEQ",
