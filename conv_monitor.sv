@@ -43,12 +43,37 @@ class conv_monitor extends uvm_monitor;
                 tr.caddr_wr = vif.caddr_wr;
                 tr.cdata_wr = vif.cdata_wr;
                 tr.is_layer0_write = (vif.csel == 3'b001);
+                tr.is_layer1_write = (vif.csel == 3'b011);
                 ap.write(tr);
 
                 if (tr.is_layer0_write) begin
                     `uvm_info("CONV_MONITOR",
                         $sformatf("observed layer0 write addr=%0d data=%0h",
                                 tr.caddr_wr, tr.cdata_wr),
+                        UVM_LOW)
+                end
+
+                if (tr.is_layer1_write) begin
+                    `uvm_info("CONV_MONITOR",
+                        $sformatf("observed layer1 write addr=%0d data=%0h",
+                                tr.caddr_wr, tr.cdata_wr),
+                        UVM_LOW)
+                end
+            end
+
+            if (vif.crd) begin
+                conv_mem_wr_tr tr;
+                tr = conv_mem_wr_tr::type_id::create("tr");
+                tr.read_seen = 1'b1;
+                tr.csel = vif.csel;
+                tr.caddr_rd = vif.caddr_rd;
+                tr.cdata_rd = vif.cdata_rd;
+                tr.is_layer0_read = (vif.csel == 3'b001);
+                ap.write(tr);
+
+                if (tr.is_layer0_read) begin
+                    `uvm_info("CONV_MONITOR",
+                        $sformatf("observed layer0 read addr=%0d", tr.caddr_rd),
                         UVM_LOW)
                 end
             end

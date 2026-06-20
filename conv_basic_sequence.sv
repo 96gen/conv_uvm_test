@@ -6,6 +6,7 @@ class conv_basic_sequence extends uvm_sequence #(conv_seq_item);
     int unsigned dat_sample_words;
     bit drive_dut_input;
     int unsigned dut_drive_cycles;
+    int unsigned dut_drive_log_stride = 1;
 
     function new(string name = "conv_basic_sequence");
         super.new(name);
@@ -17,6 +18,7 @@ class conv_basic_sequence extends uvm_sequence #(conv_seq_item);
             void'(uvm_config_db#(int unsigned)::get(get_sequencer(), "", "dat_sample_words", dat_sample_words));
             void'(uvm_config_db#(bit)::get(get_sequencer(), "", "drive_dut_input", drive_dut_input));
             void'(uvm_config_db#(int unsigned)::get(get_sequencer(), "", "dut_drive_cycles", dut_drive_cycles));
+            void'(uvm_config_db#(int unsigned)::get(get_sequencer(), "", "dut_drive_log_stride", dut_drive_log_stride));
             for (int i = 0; i < item_count; i++) begin
                 send_item(10 + i*10, i, i+1);
             end
@@ -37,6 +39,7 @@ class conv_basic_sequence extends uvm_sequence #(conv_seq_item);
             req.dat_sample_words = dat_sample_words;
             req.drive_dut_input = drive_dut_input;
             req.dut_drive_cycles = dut_drive_cycles;
+            req.dut_drive_log_stride = dut_drive_log_stride;
             finish_item(req);
 
             `uvm_info("CONV_SEQ",

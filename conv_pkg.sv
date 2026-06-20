@@ -18,4 +18,5 @@ package conv_pkg;
     `include "conv_dat_smoke_test.sv"
     `include "conv_dut_input_drive_test.sv"
     `include "conv_layer0_write_smoke_test.sv"
+    `include "conv_layer1_path_smoke_test.sv"
 endpackage
