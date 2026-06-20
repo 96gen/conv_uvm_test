@@ -6,19 +6,19 @@ module top();
     always #5 clk = ~clk;
     CONV_IF vif(clk);
     CONV dut(
-        clk,
-        vif.reset,
-        vif.busy,
-        vif.ready,
-        vif.iaddr,
-        vif.idata,
-        vif.cwr,
-        vif.caddr_wr,
-        vif.cdata_wr,
-        vif.crd,
-        vif.caddr_rd,
-        vif.cdata_rd,
-        vif.csel
+        .clk      (clk),
+        .reset    (vif.reset),
+        .busy     (vif.busy),
+        .ready    (vif.ready),
+        .iaddr    (vif.iaddr),
+        .idata    (vif.idata),
+        .cwr      (vif.cwr),
+        .caddr_wr (vif.caddr_wr),
+        .cdata_wr (vif.cdata_wr),
+        .crd      (vif.crd),
+        .caddr_rd (vif.caddr_rd),
+        .cdata_rd (vif.cdata_rd),
+        .csel     (vif.csel)
     );
     initial begin
         uvm_config_db#(virtual CONV_IF)::set(null, "*", "vif", vif);

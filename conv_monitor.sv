@@ -32,6 +32,9 @@ class conv_monitor extends uvm_monitor;
                 `uvm_info("CONV_MONITOR", "write transaction", UVM_LOW)
             end
             prev_ready = vif.ready;
+            if(vif.busy) begin
+                `uvm_info("CONV_MONITOR", "observed busy high", UVM_LOW)
+            end
         end
     endtask
 endclass

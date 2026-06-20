@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("all", "clean", "short", "long", "dat", "negative")]
+  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "negative")]
   [string]$Test = "all"
 )
 
@@ -152,6 +152,21 @@ $cases = @(
     RequiredPatterns = @(
       "opened dat file cnn_sti.dat",
       "read dat sample",
+      "received expected ready count=1",
+      "ready_seen_count=1",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
+    Key = "dut_input"
+    Name = "dut input drive smoke"
+    UvmTest = "conv_dut_input_drive_test"
+    ExpectedErrors = 0
+    RequiredPatterns = @(
+      "opened dat file cnn_sti.dat",
+      "read dat sample",
+      "drive idata",
+      "observed busy high",
       "received expected ready count=1",
       "ready_seen_count=1",
       "UVM_FATAL\s*:\s*0"
