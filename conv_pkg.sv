@@ -21,4 +21,5 @@ package conv_pkg;
     `include "conv_layer0_write_smoke_test.sv"
     `include "conv_layer1_path_smoke_test.sv"
     `include "conv_l0_mem_feedback_smoke_test.sv"
+    `include "conv_l0_expected_smoke_test.sv"
 endpackage

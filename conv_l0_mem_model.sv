@@ -23,8 +23,9 @@ class conv_l0_mem_model extends uvm_component;
     endfunction
 
     task run_phase(uvm_phase phase);
+        vif.cdata_rd <= 20'd0;
         forever begin
-            @(posedge vif.clk);
+            @(negedge vif.clk);
             if (vif.crd && vif.csel == 3'b001) begin
                 vif.cdata_rd <= l0_mem[vif.caddr_rd];
                 `uvm_info("CONV_L0_MEM",

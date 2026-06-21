@@ -9,6 +9,12 @@ class conv_scoreboard extends uvm_component;
     int layer1_write_count = 0;
     int expected_l0_read_min = 0;
     int expected_l1_write_min = 0;
+    bit check_l0_expected = 0;
+    string expected_l0_file;
+    int expected_l0_compare_count = 0;
+    logic [19:0] l0_expected [0:4095];
+    int l0_expected_pass_count = 0;
+    int l0_expected_mismatch_count = 0;
     uvm_analysis_imp #(conv_mem_wr_tr, conv_scoreboard) imp;
 
     function new(string name = "conv_scoreboard", uvm_component parent = null);
@@ -22,6 +28,13 @@ class conv_scoreboard extends uvm_component;
         void'(uvm_config_db#(int)::get(this, "", "expected_l0_write_min", expected_l0_write_min));
         void'(uvm_config_db#(int)::get(this, "", "expected_l0_read_min", expected_l0_read_min));
         void'(uvm_config_db#(int)::get(this, "", "expected_l1_write_min", expected_l1_write_min));
+        void'(uvm_config_db#(bit)::get(this, "", "check_l0_expected", check_l0_expected));
+        void'(uvm_config_db#(string)::get(this, "", "expected_l0_file", expected_l0_file));
+        void'(uvm_config_db#(int)::get(this, "", "expected_l0_compare_count", expected_l0_compare_count));
+
+        if (check_l0_expected) begin
+            load_l0_expected();
+        end
     endfunction
 
     function void write(conv_mem_wr_tr tr);
@@ -32,6 +45,17 @@ class conv_scoreboard extends uvm_component;
                     $sformatf("layer0 write check passed count=%0d addr=%0d data=%0h",
                             layer0_write_count, tr.caddr_wr, tr.cdata_wr),
                     UVM_LOW)
+                if (check_l0_expected && tr.caddr_wr < expected_l0_compare_count) begin
+                    if (tr.cdata_wr !== l0_expected[tr.caddr_wr]) begin
+                        l0_expected_mismatch_count++;
+                        `uvm_error("CONV_SCOREBOARD",
+                            $sformatf("layer0 expected mismatch addr=%0d exp=%0h got=%0h",
+                                    tr.caddr_wr, l0_expected[tr.caddr_wr], tr.cdata_wr))
+                    end
+                    else begin
+                        l0_expected_pass_count++;
+                    end
+                end
             end
             if (tr.is_layer1_write) begin
                 layer1_write_count++;
@@ -110,5 +134,50 @@ class conv_scoreboard extends uvm_component;
                         layer1_write_count),
                 UVM_LOW)
         end
+
+        if (check_l0_expected) begin
+            if (l0_expected_mismatch_count != 0 || l0_expected_pass_count < expected_l0_compare_count) begin
+                `uvm_error("CONV_SCOREBOARD",
+                    $sformatf("layer0 expected compare failed pass=%0d mismatch=%0d expected=%0d",
+                            l0_expected_pass_count, l0_expected_mismatch_count, expected_l0_compare_count))
+            end
+            else begin
+                `uvm_info("CONV_SCOREBOARD",
+                    $sformatf("layer0 expected compare passed count=%0d", l0_expected_pass_count),
+                    UVM_LOW)
+            end
+        end
+    endfunction
+
+    function void load_l0_expected();
+        int fd;
+        int code;
+        int unsigned word;
+        string line;
+
+        fd = $fopen(expected_l0_file, "r");
+        if (fd == 0) begin
+            `uvm_error("CONV_SCOREBOARD", $sformatf("cannot open layer0 expected file %s", expected_l0_file))
+            return;
+        end
+
+        for (int i = 0; i < expected_l0_compare_count; i++) begin
+            if (!$fgets(line, fd)) begin
+                `uvm_error("CONV_SCOREBOARD", $sformatf("layer0 expected ended early at %0d", i))
+                break;
+            end
+
+            code = $sscanf(line, "%h", word);
+            if (code != 1)
+                `uvm_error("CONV_SCOREBOARD", $sformatf("cannot parse layer0 expected line %0d", i))
+            else
+                l0_expected[i] = word[19:0];
+        end
+
+        $fclose(fd);
+        `uvm_info("CONV_SCOREBOARD",
+            $sformatf("loaded layer0 expected file %s count=%0d",
+                    expected_l0_file, expected_l0_compare_count),
+            UVM_LOW)
     endfunction
 endclass

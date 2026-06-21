@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "negative")]
+  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "negative")]
   [string]$Test = "all"
 )
 
@@ -226,6 +226,21 @@ $cases = @(
     )
   },
   [pscustomobject]@{
+    Key = "l0_expected"
+    Name = "l0 expected compare smoke"
+    UvmTest = "conv_l0_expected_smoke_test"
+    ExpectedErrors = 0
+    RunInAll = $false
+    RequiredPatterns = @(
+      "loaded layer0 expected file cnn_layer0_exp0.dat count=4096",
+      "observed layer0 write",
+      "served layer0 read",
+      "layer0 expected compare passed count=4096",
+      "observed expected layer0 write count=4096",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
     Key = "negative"
     Name = "negative checker smoke"
     UvmTest = "conv_bad_ready_test"
@@ -244,6 +259,11 @@ Compile-Smoke
 $failed = 0
 foreach ($case in $cases) {
   if ($Test -ne "all" -and $Test -ne $case.Key) {
+    continue
+  }
+  if ($Test -eq "all" -and
+      ($case.PSObject.Properties.Name -contains "RunInAll") -and
+      !$case.RunInAll) {
     continue
   }
 
