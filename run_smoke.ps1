@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "negative")]
+  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "reset_inflight", "negative")]
   [string]$Test = "all"
 )
 
@@ -252,6 +252,22 @@ $cases = @(
       "observed layer1 write",
       "layer1 expected compare passed count=1024",
       "observed expected layer1 write count=1024",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
+    Key = "reset_inflight"
+    Name = "reset-in-flight smoke"
+    UvmTest = "conv_reset_inflight_test"
+    ExpectedErrors = 0
+    RunInAll = $false
+    RequiredPatterns = @(
+      "start reset-in-flight scenario",
+      "observed reset during busy",
+      "restart after reset",
+      "received expected ready count=2",
+      "observed expected layer1 write count=1024",
+      "layer1 expected compare passed count=1024",
       "UVM_FATAL\s*:\s*0"
     )
   },

@@ -19,8 +19,8 @@ class conv_driver extends uvm_driver #(conv_seq_item);
         forever begin
             seq_item_port.get_next_item(req);
             `uvm_info("CONV_DRIVER",
-                $sformatf("drive item reset_cycles=%0d ready_delay_cycles=%0d ready_pulse_cycles=%0d",
-                req.reset_cycles, req.ready_delay_cycles, req.ready_pulse_cycles),
+                $sformatf("drive item reset_cycles=%0d ready_delay_cycles=%0d ready_pulse_cycles=%0d reset_inflight=%0b",
+                req.reset_cycles, req.ready_delay_cycles, req.ready_pulse_cycles, req.reset_inflight),
             UVM_LOW)
             basic_phase(req);
             if (req.drive_dut_input) begin
@@ -118,11 +118,45 @@ class conv_driver extends uvm_driver #(conv_seq_item);
             logic [11:0] addr;
 
             @(negedge vif.clk);
+            if (req.reset_inflight && cycle == req.reset_at_cycle) begin
+                apply_inflight_reset(req, cycle);
+                continue;
+            end
+
             addr = vif.iaddr;
             vif.idata <= img_mem[addr];
             if ((req.dut_drive_log_stride == 0) || ((cycle % req.dut_drive_log_stride) == 0)) begin
                 `uvm_info("CONV_DRIVER", $sformatf("drive idata addr=%0d data=%0h", addr, img_mem[addr]), UVM_LOW)
             end
+        end
+    endtask
+
+    task apply_inflight_reset(conv_seq_item req, int unsigned cycle);
+        if (!vif.busy) begin
+            `uvm_error("CONV_DRIVER",
+                $sformatf("reset-in-flight requested while busy is low at cycle=%0d", cycle))
+        end
+        else begin
+            `uvm_info("CONV_DRIVER",
+                $sformatf("observed reset during busy at drive cycle=%0d", cycle),
+                UVM_LOW)
+        end
+
+        vif.ready <= 1'b0;
+        vif.idata <= 20'd0;
+        vif.reset <= 1'b1;
+        repeat (req.reset_hold_cycles) @(posedge vif.clk);
+        @(negedge vif.clk);
+        vif.reset <= 1'b0;
+        `uvm_info("CONV_DRIVER", "restart after reset", UVM_LOW)
+
+        if (req.rerun_after_reset) begin
+            @(negedge vif.clk);
+            vif.ready <= 1'b1;
+            repeat (req.ready_pulse_cycles) @(posedge vif.clk);
+            @(negedge vif.clk);
+            vif.ready <= 1'b0;
+            `uvm_info("CONV_DRIVER", "ready pulse after reset done", UVM_LOW)
         end
     endtask
 endclass

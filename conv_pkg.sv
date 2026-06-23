@@ -3,6 +3,7 @@ package conv_pkg;
     `include "uvm_macros.svh"
     `include "conv_seq_item.sv"
     `include "conv_basic_sequence.sv"
+    `include "conv_reset_inflight_sequence.sv"
     `include "conv_sequencer.sv"
     `include "conv_driver.sv"
     `include "conv_mem_wr_tr.sv"
@@ -23,4 +24,5 @@ package conv_pkg;
     `include "conv_l0_mem_feedback_smoke_test.sv"
     `include "conv_l0_expected_smoke_test.sv"
     `include "conv_l1_expected_smoke_test.sv"
+    `include "conv_reset_inflight_test.sv"
 endpackage
