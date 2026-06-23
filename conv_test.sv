@@ -15,6 +15,9 @@ class conv_test extends uvm_test;
     bit check_l0_expected = 0;
     string expected_l0_file;
     int expected_l0_compare_count = 0;
+    bit check_l1_expected = 0;
+    string expected_l1_file;
+    int expected_l1_compare_count = 0;
     `uvm_component_utils(conv_test);
 
     function new(string name = "conv_test", uvm_component parent = null);
@@ -40,6 +43,9 @@ class conv_test extends uvm_test;
         uvm_config_db#(bit)::set(this, "*", "check_l0_expected", check_l0_expected);
         uvm_config_db#(string)::set(this, "*", "expected_l0_file", expected_l0_file);
         uvm_config_db#(int)::set(this, "*", "expected_l0_compare_count", expected_l0_compare_count);
+        uvm_config_db#(bit)::set(this, "*", "check_l1_expected", check_l1_expected);
+        uvm_config_db#(string)::set(this, "*", "expected_l1_file", expected_l1_file);
+        uvm_config_db#(int)::set(this, "*", "expected_l1_compare_count", expected_l1_compare_count);
         seq = conv_basic_sequence::type_id::create("seq");
         env = conv_env::type_id::create("env", this);
     endfunction

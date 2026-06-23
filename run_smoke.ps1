@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "negative")]
+  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "negative")]
   [string]$Test = "all"
 )
 
@@ -237,6 +237,21 @@ $cases = @(
       "served layer0 read",
       "layer0 expected compare passed count=4096",
       "observed expected layer0 write count=4096",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
+    Key = "l1_expected"
+    Name = "l1 expected compare smoke"
+    UvmTest = "conv_l1_expected_smoke_test"
+    ExpectedErrors = 0
+    RunInAll = $false
+    RequiredPatterns = @(
+      "loaded layer1 expected file cnn_layer1_exp0.dat count=1024",
+      "served layer0 read",
+      "observed layer1 write",
+      "layer1 expected compare passed count=1024",
+      "observed expected layer1 write count=1024",
       "UVM_FATAL\s*:\s*0"
     )
   },
