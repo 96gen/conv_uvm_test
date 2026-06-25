@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "l0_addr_map", "l1_addr_map", "reset_inflight", "protocol", "protocol_negative", "fault_l0_data", "fault_l1_data", "fault_illegal_csel", "fault_missing_l0", "fault_duplicate_l1", "negative")]
+  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "l0_addr_map", "l1_addr_map", "reset_inflight", "protocol", "protocol_negative", "fault_l0_data", "fault_l1_data", "fault_illegal_csel", "fault_missing_l0", "fault_duplicate_l1", "fault_l1_addr_oob", "negative")]
   [string]$Test = "all"
 )
 
@@ -33,6 +33,10 @@ switch ($Test) {
   "fault_duplicate_l1" {
     $DutSource = "CONV_buggy.v"
     $CompileDefines += "+define+FI_BUG4_L1_DUP_ADDR"
+  }
+  "fault_l1_addr_oob" {
+    $DutSource = "CONV_buggy.v"
+    $CompileDefines += "+define+FI_ASSERT_L1_ADDR_OOB"
   }
 }
 
@@ -421,6 +425,19 @@ $cases = @(
       "layer1 address map failed unique=1023 duplicate=1 missing=1 expected=1024",
       "observed expected layer1 write count=1024",
       "UVM_ERROR\s*:\s*2",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
+    Key = "fault_l1_addr_oob"
+    Name = "layer1 address out-of-range fault smoke"
+    UvmTest = "conv_layer1_path_smoke_test"
+    ExpectedErrors = 1
+    RunInAll = $false
+    RequiredPatterns = @(
+      "\[L1_ADDR_OOB\] layer1 write address out of range=1024",
+      "observed layer1 write",
+      "UVM_ERROR\s*:\s*1",
       "UVM_FATAL\s*:\s*0"
     )
   },

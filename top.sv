@@ -27,7 +27,8 @@ module top();
         .ready (vif.ready),
         .cwr   (vif.cwr),
         .crd   (vif.crd),
-        .csel  (vif.csel)
+        .csel  (vif.csel),
+        .caddr_wr (vif.caddr_wr)
     );
     initial begin
         uvm_config_db#(virtual CONV_IF)::set(null, "*", "vif", vif);

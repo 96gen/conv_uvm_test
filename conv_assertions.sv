@@ -7,7 +7,8 @@ module conv_assertions(
     input logic        ready,
     input logic        cwr,
     input logic        crd,
-    input logic [2:0]  csel
+    input logic [2:0]  csel,
+    input logic [11:0] caddr_wr
 );
     import uvm_pkg::*;
     `include "uvm_macros.svh"
@@ -41,6 +42,11 @@ module conv_assertions(
         if (crd && (csel != 3'b001)) begin
             `uvm_error("CRD_ILLEGAL_CSEL",
                 $sformatf("crd requires csel 001, got %03b", csel))
+        end
+
+        if (cwr && (csel == 3'b011) && (caddr_wr >= 12'd1024)) begin
+            `uvm_error("L1_ADDR_OOB",
+                $sformatf("layer1 write address out of range=%0d", caddr_wr))
         end
 
         if (ready && busy) begin
