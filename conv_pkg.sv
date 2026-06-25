@@ -26,4 +26,5 @@ package conv_pkg;
     `include "conv_l1_expected_smoke_test.sv"
     `include "conv_reset_inflight_test.sv"
     `include "conv_protocol_negative_test.sv"
+    `include "conv_protocol_csel_fault_test.sv"
 endpackage

@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "reset_inflight", "protocol", "protocol_negative", "fault_l0_data", "fault_l1_data", "negative")]
+  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "reset_inflight", "protocol", "protocol_negative", "fault_l0_data", "fault_l1_data", "fault_illegal_csel", "negative")]
   [string]$Test = "all"
 )
 
@@ -21,6 +21,10 @@ switch ($Test) {
   "fault_l1_data" {
     $DutSource = "CONV_buggy.v"
     $CompileDefines += "+define+FI_BUG2_L1_DATA"
+  }
+  "fault_illegal_csel" {
+    $DutSource = "CONV_buggy.v"
+    $CompileDefines += "+define+FI_ASSERT_ILLEGAL_CSEL"
   }
 }
 
@@ -340,6 +344,20 @@ $cases = @(
       "layer1 expected mismatch addr=17",
       "layer1 expected compare failed pass=1023 mismatch=1 expected=1024",
       "UVM_ERROR\s*:\s*2",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
+    Key = "fault_illegal_csel"
+    Name = "illegal csel protocol fault smoke"
+    UvmTest = "conv_protocol_csel_fault_test"
+    ExpectedErrors = 1
+    RunInAll = $false
+    RequiredPatterns = @(
+      "protocol checker enabled",
+      "observed layer0 write",
+      "\[CWR_ILLEGAL_CSEL\] cwr requires csel 001 or 011, got 010",
+      "UVM_ERROR\s*:\s*1",
       "UVM_FATAL\s*:\s*0"
     )
   },
