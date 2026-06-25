@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "reset_inflight", "protocol", "protocol_negative", "fault_l0_data", "fault_l1_data", "fault_illegal_csel", "negative")]
+  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "l0_addr_map", "reset_inflight", "protocol", "protocol_negative", "fault_l0_data", "fault_l1_data", "fault_illegal_csel", "fault_missing_l0", "negative")]
   [string]$Test = "all"
 )
 
@@ -25,6 +25,10 @@ switch ($Test) {
   "fault_illegal_csel" {
     $DutSource = "CONV_buggy.v"
     $CompileDefines += "+define+FI_ASSERT_ILLEGAL_CSEL"
+  }
+  "fault_missing_l0" {
+    $DutSource = "CONV_buggy.v"
+    $CompileDefines += "+define+FI_BUG3_MISSING_L0"
   }
 }
 
@@ -277,6 +281,19 @@ $cases = @(
     )
   },
   [pscustomobject]@{
+    Key = "l0_addr_map"
+    Name = "layer0 address map smoke"
+    UvmTest = "conv_l0_address_map_smoke_test"
+    ExpectedErrors = 0
+    RunInAll = $false
+    RequiredPatterns = @(
+      "layer0 address map passed unique=4096 expected=4096",
+      "observed expected layer0 write count=4096",
+      "UVM_ERROR\s*:\s*0",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
     Key = "reset_inflight"
     Name = "reset-in-flight smoke"
     UvmTest = "conv_reset_inflight_test"
@@ -357,6 +374,20 @@ $cases = @(
       "protocol checker enabled",
       "observed layer0 write",
       "\[CWR_ILLEGAL_CSEL\] cwr requires csel 001 or 011, got 010",
+      "UVM_ERROR\s*:\s*1",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
+    Key = "fault_missing_l0"
+    Name = "missing layer0 address fault smoke"
+    UvmTest = "conv_l0_address_map_smoke_test"
+    ExpectedErrors = 1
+    RunInAll = $false
+    RequiredPatterns = @(
+      "\[L0_ADDR_MISSING\] missing layer0 write address=123",
+      "layer0 address map failed unique=4095 missing=1 expected=4096",
+      "observed expected layer0 write count=4095",
       "UVM_ERROR\s*:\s*1",
       "UVM_FATAL\s*:\s*0"
     )
