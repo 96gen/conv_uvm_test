@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "reset_inflight", "protocol", "protocol_negative", "negative")]
+  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "reset_inflight", "protocol", "protocol_negative", "fault_l0_data", "negative")]
   [string]$Test = "all"
 )
 
@@ -10,6 +10,15 @@ $UvmSrc = "C:\intelFPGA_lite\18.1\modelsim_ase\verilog_src\uvm-1.2\src"
 $RunStamp = (Get-Date).ToString("yyyyMMdd_HHmmss")
 $ReportDir = Join-Path $Root ("reports\smoke_{0}" -f $RunStamp)
 $Lib = "smoke_$RunStamp"
+$DutSource = "CONV.v"
+$CompileDefines = @()
+
+switch ($Test) {
+  "fault_l0_data" {
+    $DutSource = "CONV_buggy.v"
+    $CompileDefines += "+define+FI_BUG1_L0_DATA"
+  }
+}
 
 New-Item -ItemType Directory -Force -Path $ReportDir | Out-Null
 Set-Location $Root
@@ -52,12 +61,15 @@ function Compile-Smoke {
     "-sv",
     "-timescale", "1ns/1ps",
     "-work", $Lib,
-    "+define+UVM_NO_DPI",
+    "+define+UVM_NO_DPI"
+  )
+  $args += $CompileDefines
+  $args += @(
     "+incdir+$UvmSrc",
     (Join-Path $UvmSrc "uvm_pkg.sv"),
     "conv_if.sv",
     "conv_pkg.sv",
-    "CONV.v",
+    $DutSource,
     "conv_assertions.sv",
     "top.sv"
   )
@@ -296,6 +308,20 @@ $cases = @(
       "\[READY_WHILE_BUSY\]",
       "received expected ready count=2",
       "UVM_ERROR\s*:\s*1",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
+    Key = "fault_l0_data"
+    Name = "layer0 data fault smoke"
+    UvmTest = "conv_l0_expected_smoke_test"
+    ExpectedErrors = 2
+    RunInAll = $false
+    RequiredPatterns = @(
+      "loaded layer0 expected file cnn_layer0_exp0.dat count=4096",
+      "layer0 expected mismatch addr=123",
+      "layer0 expected compare failed",
+      "UVM_ERROR\s*:\s*2",
       "UVM_FATAL\s*:\s*0"
     )
   },
