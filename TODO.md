@@ -1,4 +1,6 @@
-# TODO
+# Future Work
 
-- Update `top.sv` to use named DUT port connections instead of positional connections for clearer interview presentation and safer maintenance.
-- Expand `conv_seq_item.sv` beyond an empty transaction by adding fields such as `img_file`, test mode, or control knobs for later stimulus scenarios.
+- Parameterize the ModelSim and UVM installation paths.
+- Add internal FSM and cross-coverage through non-intrusive bind-based coverage.
+- Add a second image dataset to broaden golden-data regression.
+- Port the regression wrapper to another simulator for cross-tool validation.

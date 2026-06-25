@@ -1,80 +1,175 @@
-# CONV UVM Smoke Testbench
+# CONV UVM Verification Project
 
-This repository is a staged rebuild of a CONV UVM testbench. The current goal is not full DUT functional verification yet. The goal is to prove that the UVM architecture is wired correctly, configurable by test scenario, and able to catch expected checker failures.
+A reusable UVM 1.2 environment for a two-layer convolution accelerator. The project verifies real DUT data flow with supplied `.dat` vectors, checks protocol and liveness rules, and proves checker effectiveness through expected-fail RTL fault injection.
 
-## Current Architecture
+## Verification Scope
 
-```text
-top.sv
-  -> CONV DUT
-  -> CONV_IF
-  -> uvm_config_db virtual interface
+The environment currently proves:
 
-conv_test
-  -> conv_env
-      -> conv_agent
-          -> conv_sequencer
-          -> conv_driver
-          -> conv_monitor
-      -> conv_scoreboard
-      -> conv_coverage
+- Configurable sequence-to-driver stimulus through `conv_seq_item`.
+- Virtual-interface delivery through `uvm_config_db`.
+- Image input driven from `cnn_sti.dat`.
+- Layer0 memory feedback through `conv_l0_mem_model`.
+- Full Layer0 golden comparison: 4096 writes.
+- Full Layer1 golden comparison: 1024 writes.
+- Layer0 and Layer1 address completeness.
+- Duplicate, missing, illegal, and out-of-range address detection.
+- Reset protocol and reset-in-flight recovery.
+- Ready/busy protocol and bounded ready-to-busy liveness.
+- Eight expected-fail DUT fault scenarios using the same checker stack.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    TEST["UVM tests"] --> SEQ["Sequences and seq_item"]
+    SEQ --> SEQR["Sequencer"]
+    SEQR --> DRV["Driver"]
+    DRV --> IF["CONV_IF"]
+    IF --> DUT["CONV DUT"]
+
+    DUT --> IF
+    IF --> MON["Monitor"]
+    MON --> SB["Scoreboard"]
+    MON --> COV["Coverage counters"]
+    MON --> MEM["Layer0 memory model"]
+    MEM --> IF
+
+    IF --> CHECK["Procedural protocol checker"]
 ```
 
-The sequence creates `conv_seq_item` transactions. The driver consumes the item fields to control reset and ready timing. The monitor observes ready rising edges and publishes analysis transactions. The scoreboard checks each observed transaction and also performs an end-of-test count check. Coverage tracks and reports the number of ready transactions sampled.
+`CONV_IF` is instantiated in `top.sv`, outside the agent. The agent owns the sequencer, driver, and monitor. The monitor publishes observed ready, read, and write activity to the scoreboard, coverage subscriber, and Layer0 memory model.
 
-## Smoke Regression
+### Data Flow
 
-Run the full smoke regression with ModelSim:
+1. A test configures sequence length, `.dat` paths, drive duration, expected counts, and checker modes.
+2. `conv_basic_sequence` transfers those settings through `conv_seq_item`.
+3. `conv_driver` applies reset/ready and drives `idata` using the DUT's registered `iaddr`.
+4. The DUT writes Layer0 data through `cwr/caddr_wr/cdata_wr`.
+5. `conv_l0_mem_model` stores Layer0 writes and returns `cdata_rd` for pooling reads.
+6. `conv_monitor` converts bus activity into analysis transactions.
+7. `conv_scoreboard` checks golden data, counts, and address maps.
+8. `conv_assertions.sv` checks protocol, reset, range, and liveness rules.
+
+## One-Command Final Regression
+
+Run the complete interview regression:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\run_smoke.ps1
+powershell -ExecutionPolicy Bypass -File .\run_final_regression.ps1
 ```
 
-Run one case at a time:
+The final runner executes 16 ordered gates:
+
+- Default smoke regression.
+- Layer0 and Layer1 golden comparisons.
+- Layer0 and Layer1 address maps.
+- Reset-in-flight recovery.
+- Reset protocol and ready-to-busy liveness baselines.
+- Eight expected-fail DUT fault scenarios.
+
+Each failed case is retried once by default to isolate intermittent simulator startup crashes:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\run_smoke.ps1 -Test clean
-powershell -ExecutionPolicy Bypass -File .\run_smoke.ps1 -Test short
-powershell -ExecutionPolicy Bypass -File .\run_smoke.ps1 -Test long
-powershell -ExecutionPolicy Bypass -File .\run_smoke.ps1 -Test negative
+powershell -ExecutionPolicy Bypass -File .\run_final_regression.ps1 -MaxAttempts 2
 ```
 
-Reports are written under:
+Preview the matrix without running ModelSim:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run_final_regression.ps1 -ListOnly
+```
+
+The final matrix is written to:
 
 ```text
-reports/smoke_<timestamp>/
+reports/final_<timestamp>/final_regression_summary.md
 ```
 
-## Passing Smoke Cases
+## Individual Smoke Cases
+
+Use `run_smoke.ps1` for focused debugging:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\run_smoke.ps1 -Test l1_expected
+powershell -ExecutionPolicy Bypass -File .\run_smoke.ps1 -Test reset_inflight
+powershell -ExecutionPolicy Bypass -File .\run_smoke.ps1 -Test fault_duplicate_l1
+```
+
+### Baseline and Functional Matrix
+
+| Test key | Proof |
+|---|---|
+| `all` | Base UVM plumbing, scenarios, data drive, memory feedback, protocol positive/negative paths |
+| `l0_expected` | Layer0 golden compare, 4096/4096 |
+| `l1_expected` | Layer1 golden compare, 1024/1024 |
+| `l0_addr_map` | Layer0 unique addresses 0-4095 |
+| `l1_addr_map` | Layer1 unique addresses 0-1023 |
+| `reset_inflight` | Reset during busy, restart, and post-reset Layer1 golden compare |
+| `reset_protocol` | `busy/cwr/crd` remain low during reset |
+| `ready_busy_liveness` | Busy responds within one cycle for the normal DUT |
+
+### Expected-Fail Fault Matrix
+
+An expected-fail case passes only when its required checker signature appears with the exact expected UVM error count and zero UVM fatals.
+
+| Test key | RTL fault | Expected proof |
+|---|---|---|
+| `fault_l0_data` | `FI_BUG1_L0_DATA` | Layer0 mismatch at address 123 |
+| `fault_l1_data` | `FI_BUG2_L1_DATA` | Layer1 mismatch at address 17 |
+| `fault_illegal_csel` | `FI_ASSERT_ILLEGAL_CSEL` | `[CWR_ILLEGAL_CSEL]`, `csel=010` |
+| `fault_missing_l0` | `FI_BUG3_MISSING_L0` | `[L0_ADDR_MISSING]`, address 123 |
+| `fault_duplicate_l1` | `FI_BUG4_L1_DUP_ADDR` | Duplicate address 0 and missing address 1 |
+| `fault_l1_addr_oob` | `FI_ASSERT_L1_ADDR_OOB` | `[L1_ADDR_OOB]`, address 1024 |
+| `fault_reset_protocol` | `FI_ASSERT_RESET_PROTOCOL` | `[RESET_CWR]` once per reset episode |
+| `fault_ready_busy_timeout` | `FI_ASSERT_READY_BUSY_TIMEOUT` | `[READY_BUSY_TIMEOUT]` after eight cycles |
+
+## Key Files
+
+| File | Responsibility |
+|---|---|
+| `top.sv` | Clock, interface, named DUT connections, checker wiring, `run_test()` |
+| `conv_pkg.sv` | UVM class compilation order |
+| `conv_driver.sv` | Reset/ready control and image-data driving |
+| `conv_monitor.sv` | Ready, read, and write observation |
+| `conv_l0_mem_model.sv` | Layer0 storage and read feedback |
+| `conv_scoreboard.sv` | Golden compare, counts, missing/duplicate address checks |
+| `conv_assertions.sv` | Procedural protocol, reset, range, and liveness checker |
+| `CONV_buggy.v` | Compile-time RTL fault-injection variants |
+| `run_smoke.ps1` | Single-case compiler and gate runner |
+| `run_final_regression.ps1` | Final 16-case regression orchestrator |
+
+## Environment
+
+The verified local environment is:
+
+- Windows PowerShell.
+- Intel FPGA Lite 18.1.
+- ModelSim Intel FPGA Edition 10.5b.
+- UVM 1.2 with `UVM_NO_DPI`.
+
+`run_smoke.ps1` currently references:
 
 ```text
-clean smoke              conv_test                 expected ready count = 3
-short scenario smoke     conv_short_ready_test     expected ready count = 1
-long scenario smoke      conv_long_ready_test      expected ready count = 5
-negative checker smoke   conv_bad_ready_test       expected UVM_ERROR count = 3
+C:\intelFPGA_lite\18.1\modelsim_ase\verilog_src\uvm-1.2\src
 ```
 
-The regression expects the negative checker smoke to report three scoreboard errors. That case is considered passing because it proves the checker is active and catches bad monitor transactions.
+Update `$UvmSrc` if ModelSim is installed elsewhere.
 
-## What Is Proven
+## Known Limitations
 
-- Virtual interface delivery from `top.sv` into UVM components works.
-- The same environment, agent, driver, monitor, scoreboard, and coverage are reused across multiple tests.
-- Tests configure scenario size through `item_count` and `expected_ready_count`.
-- `conv_basic_sequence` generates a configurable number of transactions.
-- `conv_driver` consumes `conv_seq_item` timing fields instead of hardcoding the whole handshake.
-- `conv_monitor` converts ready rising edges into analysis transactions.
-- `conv_scoreboard` performs per-transaction checks and end-of-test observed-count closure.
-- `conv_coverage` samples ready transactions and reports final coverage count.
-- Negative smoke proves the scoreboard can fail when the observed transaction is intentionally marked bad.
+- ModelSim 10.5b intermittently exits with `SIGSEGV` while loading a compiled design. This occurs before UVM execution and is distinct from a checker failure. The final runner retries a failed case once and preserves each console log.
+- `conv_assertions.sv` is a procedural protocol checker, not a formal SVA property library.
+- Coverage is currently transaction/event counting rather than full internal FSM and cross-coverage closure.
+- Golden validation uses the supplied fixed image and expected-output datasets.
+- Simulator paths are Windows and ModelSim specific.
 
-## Not Yet Proven
+## Interview Positioning
 
-- DUT convolution correctness is not checked against golden `.dat` outputs yet.
-- Image/data stimulus fields are not connected into `conv_seq_item` yet.
-- `top.sv` still has a TODO to convert DUT positional port connections to named connections.
-- The current coverage is smoke-level event counting, not full functional coverage closure.
+The project demonstrates one shared UVM environment across three scenario families:
 
-## Next Direction
+1. Clean directed and golden-data validation.
+2. Reset and liveness recovery scenarios.
+3. Expected-fail RTL fault injection with exact checker signatures.
 
-The next technical milestone should connect real stimulus intent into `conv_seq_item`, such as an image file, mode field, or control fields that prepare the testbench for `.dat`-based functional checking.
+The important result is not merely that the DUT passes. The same environment also proves that data, address, protocol, reset, range, and timeout defects are detected at the intended verification layer.
