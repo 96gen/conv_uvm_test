@@ -179,3 +179,4 @@ The important result is not merely that the DUT passes. The same environment als
 - [Architecture and responsibility guide](docs/interview_architecture.md)
 - [Complete verification test matrix](docs/test_matrix.md)
 - [Reset, duplicate-address, and liveness debug stories](docs/debug_stories.md)
+- [Final 16/16 verification record](docs/final_verification.md)
