@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "l0_addr_map", "reset_inflight", "protocol", "protocol_negative", "fault_l0_data", "fault_l1_data", "fault_illegal_csel", "fault_missing_l0", "negative")]
+  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "l0_addr_map", "l1_addr_map", "reset_inflight", "protocol", "protocol_negative", "fault_l0_data", "fault_l1_data", "fault_illegal_csel", "fault_missing_l0", "fault_duplicate_l1", "negative")]
   [string]$Test = "all"
 )
 
@@ -29,6 +29,10 @@ switch ($Test) {
   "fault_missing_l0" {
     $DutSource = "CONV_buggy.v"
     $CompileDefines += "+define+FI_BUG3_MISSING_L0"
+  }
+  "fault_duplicate_l1" {
+    $DutSource = "CONV_buggy.v"
+    $CompileDefines += "+define+FI_BUG4_L1_DUP_ADDR"
   }
 }
 
@@ -294,6 +298,19 @@ $cases = @(
     )
   },
   [pscustomobject]@{
+    Key = "l1_addr_map"
+    Name = "layer1 address map smoke"
+    UvmTest = "conv_l1_address_map_smoke_test"
+    ExpectedErrors = 0
+    RunInAll = $false
+    RequiredPatterns = @(
+      "layer1 address map passed unique=1024 expected=1024",
+      "observed expected layer1 write count=1024",
+      "UVM_ERROR\s*:\s*0",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
     Key = "reset_inflight"
     Name = "reset-in-flight smoke"
     UvmTest = "conv_reset_inflight_test"
@@ -389,6 +406,21 @@ $cases = @(
       "layer0 address map failed unique=4095 missing=1 expected=4096",
       "observed expected layer0 write count=4095",
       "UVM_ERROR\s*:\s*1",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
+    Key = "fault_duplicate_l1"
+    Name = "duplicate layer1 address fault smoke"
+    UvmTest = "conv_l1_address_map_smoke_test"
+    ExpectedErrors = 2
+    RunInAll = $false
+    RequiredPatterns = @(
+      "\[L1_ADDR_DUPLICATE\] duplicate layer1 write address=0",
+      "\[L1_ADDR_MISSING\] missing layer1 write address=1",
+      "layer1 address map failed unique=1023 duplicate=1 missing=1 expected=1024",
+      "observed expected layer1 write count=1024",
+      "UVM_ERROR\s*:\s*2",
       "UVM_FATAL\s*:\s*0"
     )
   },

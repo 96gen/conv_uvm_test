@@ -26,6 +26,12 @@ class conv_scoreboard extends uvm_component;
     logic [19:0] l1_expected [0:1023];
     int l1_expected_pass_count = 0;
     int l1_expected_mismatch_count = 0;
+    bit check_l1_addr_map = 0;
+    int expected_l1_addr_count = 0;
+    bit l1_addr_seen [0:1023];
+    int l1_unique_addr_count = 0;
+    int l1_duplicate_addr_count = 0;
+    int l1_missing_addr_count = 0;
     uvm_analysis_imp #(conv_mem_wr_tr, conv_scoreboard) imp;
 
     function new(string name = "conv_scoreboard", uvm_component parent = null);
@@ -47,6 +53,8 @@ class conv_scoreboard extends uvm_component;
         void'(uvm_config_db#(bit)::get(this, "", "check_l1_expected", check_l1_expected));
         void'(uvm_config_db#(string)::get(this, "", "expected_l1_file", expected_l1_file));
         void'(uvm_config_db#(int)::get(this, "", "expected_l1_compare_count", expected_l1_compare_count));
+        void'(uvm_config_db#(bit)::get(this, "", "check_l1_addr_map", check_l1_addr_map));
+        void'(uvm_config_db#(int)::get(this, "", "expected_l1_addr_count", expected_l1_addr_count));
 
         if (check_l0_expected) begin
             load_l0_expected();
@@ -58,6 +66,11 @@ class conv_scoreboard extends uvm_component;
             `uvm_fatal("L0_ADDR_MAP_CONFIG",
                 $sformatf("expected_l0_addr_count=%0d exceeds bitmap size 4096",
                         expected_l0_addr_count))
+        end
+        if (check_l1_addr_map && expected_l1_addr_count > 1024) begin
+            `uvm_fatal("L1_ADDR_MAP_CONFIG",
+                $sformatf("expected_l1_addr_count=%0d exceeds bitmap size 1024",
+                        expected_l1_addr_count))
         end
     endfunction
 
@@ -93,6 +106,17 @@ class conv_scoreboard extends uvm_component;
                     $sformatf("layer1 write check passed count=%0d addr=%0d data=%0h",
                             layer1_write_count, tr.caddr_wr, tr.cdata_wr),
                     UVM_LOW)
+                if (check_l1_addr_map && tr.caddr_wr < expected_l1_addr_count) begin
+                    if (l1_addr_seen[tr.caddr_wr]) begin
+                        l1_duplicate_addr_count++;
+                        `uvm_error("L1_ADDR_DUPLICATE",
+                            $sformatf("duplicate layer1 write address=%0d", tr.caddr_wr))
+                    end
+                    else begin
+                        l1_addr_seen[tr.caddr_wr] = 1'b1;
+                        l1_unique_addr_count++;
+                    end
+                end
                 if (check_l1_expected && tr.caddr_wr < expected_l1_compare_count) begin
                     if (tr.cdata_wr !== l1_expected[tr.caddr_wr]) begin
                         l1_expected_mismatch_count++;
@@ -223,6 +247,31 @@ class conv_scoreboard extends uvm_component;
             else begin
                 `uvm_info("CONV_SCOREBOARD",
                     $sformatf("layer1 expected compare passed count=%0d", l1_expected_pass_count),
+                    UVM_LOW)
+            end
+        end
+
+        if (check_l1_addr_map) begin
+            l1_missing_addr_count = 0;
+            for (int addr = 0; addr < expected_l1_addr_count; addr++) begin
+                if (!l1_addr_seen[addr]) begin
+                    l1_missing_addr_count++;
+                    `uvm_error("L1_ADDR_MISSING",
+                        $sformatf("missing layer1 write address=%0d", addr))
+                end
+            end
+
+            if (l1_duplicate_addr_count == 0 && l1_missing_addr_count == 0) begin
+                `uvm_info("CONV_SCOREBOARD",
+                    $sformatf("layer1 address map passed unique=%0d expected=%0d",
+                            l1_unique_addr_count, expected_l1_addr_count),
+                    UVM_LOW)
+            end
+            else begin
+                `uvm_info("CONV_SCOREBOARD",
+                    $sformatf("layer1 address map failed unique=%0d duplicate=%0d missing=%0d expected=%0d",
+                            l1_unique_addr_count, l1_duplicate_addr_count,
+                            l1_missing_addr_count, expected_l1_addr_count),
                     UVM_LOW)
             end
         end
