@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "l0_addr_map", "l1_addr_map", "reset_protocol", "reset_inflight", "protocol", "protocol_negative", "fault_l0_data", "fault_l1_data", "fault_illegal_csel", "fault_missing_l0", "fault_duplicate_l1", "fault_l1_addr_oob", "fault_reset_protocol", "negative")]
+  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "l0_addr_map", "l1_addr_map", "reset_protocol", "ready_busy_liveness", "reset_inflight", "protocol", "protocol_negative", "fault_l0_data", "fault_l1_data", "fault_illegal_csel", "fault_missing_l0", "fault_duplicate_l1", "fault_l1_addr_oob", "fault_reset_protocol", "fault_ready_busy_timeout", "negative")]
   [string]$Test = "all"
 )
 
@@ -41,6 +41,10 @@ switch ($Test) {
   "fault_reset_protocol" {
     $DutSource = "CONV_buggy.v"
     $CompileDefines += "+define+FI_ASSERT_RESET_PROTOCOL"
+  }
+  "fault_ready_busy_timeout" {
+    $DutSource = "CONV_buggy.v"
+    $CompileDefines += "+define+FI_ASSERT_READY_BUSY_TIMEOUT"
   }
 }
 
@@ -348,6 +352,19 @@ $cases = @(
     )
   },
   [pscustomobject]@{
+    Key = "ready_busy_liveness"
+    Name = "ready-to-busy liveness smoke"
+    UvmTest = "conv_ready_busy_timeout_test"
+    ExpectedErrors = 0
+    RunInAll = $false
+    RequiredPatterns = @(
+      "ready-to-busy observed within 1 cycles",
+      "received expected ready count=1",
+      "UVM_ERROR\s*:\s*0",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
     Key = "protocol"
     Name = "protocol checker smoke"
     UvmTest = "conv_layer1_path_smoke_test"
@@ -467,6 +484,19 @@ $cases = @(
     RequiredPatterns = @(
       "\[RESET_CWR\] cwr must be low while reset is asserted",
       "received expected ready count=0",
+      "UVM_ERROR\s*:\s*1",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
+    Key = "fault_ready_busy_timeout"
+    Name = "ready-to-busy timeout fault smoke"
+    UvmTest = "conv_ready_busy_timeout_test"
+    ExpectedErrors = 1
+    RunInAll = $false
+    RequiredPatterns = @(
+      "\[READY_BUSY_TIMEOUT\] busy did not assert within 8 cycles after ready",
+      "received expected ready count=1",
       "UVM_ERROR\s*:\s*1",
       "UVM_FATAL\s*:\s*0"
     )

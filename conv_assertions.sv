@@ -16,6 +16,9 @@ module conv_assertions(
     bit reset_busy_reported;
     bit reset_cwr_reported;
     bit reset_crd_reported;
+    bit ready_busy_pending;
+    int unsigned ready_busy_wait_cycles;
+    localparam int READY_BUSY_TIMEOUT_CYCLES = 8;
 
     initial begin
         `uvm_info("CONV_ASSERTIONS", "protocol checker enabled", UVM_LOW)
@@ -23,6 +26,9 @@ module conv_assertions(
 
     always @(negedge clk) begin
         if (reset) begin
+            ready_busy_pending = 1'b0;
+            ready_busy_wait_cycles = 0;
+
             if (busy && !reset_busy_reported) begin
                 reset_busy_reported = 1'b1;
                 `uvm_error("RESET_BUSY", "busy must be low while reset is asserted")
@@ -42,6 +48,31 @@ module conv_assertions(
             reset_busy_reported = 1'b0;
             reset_cwr_reported = 1'b0;
             reset_crd_reported = 1'b0;
+
+            if (busy && ready_busy_pending) begin
+                `uvm_info("CONV_ASSERTIONS",
+                    $sformatf("ready-to-busy observed within %0d cycles",
+                            ready_busy_wait_cycles + 1),
+                    UVM_LOW)
+                ready_busy_pending = 1'b0;
+                ready_busy_wait_cycles = 0;
+            end
+            else if (!busy && !ready_busy_pending && ready) begin
+                ready_busy_pending = 1'b1;
+                ready_busy_wait_cycles = 0;
+            end
+            else if (!busy && ready_busy_pending) begin
+                if ((ready_busy_wait_cycles + 1) >= READY_BUSY_TIMEOUT_CYCLES) begin
+                    `uvm_error("READY_BUSY_TIMEOUT",
+                        $sformatf("busy did not assert within %0d cycles after ready",
+                                READY_BUSY_TIMEOUT_CYCLES))
+                    ready_busy_pending = 1'b0;
+                    ready_busy_wait_cycles = 0;
+                end
+                else begin
+                    ready_busy_wait_cycles++;
+                end
+            end
 
             if (cwr && crd) begin
                 `uvm_error("CWR_CRD_CONFLICT", "cwr and crd must not be asserted together")

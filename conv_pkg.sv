@@ -30,4 +30,5 @@ package conv_pkg;
     `include "conv_l0_address_map_smoke_test.sv"
     `include "conv_l1_address_map_smoke_test.sv"
     `include "conv_reset_protocol_fault_test.sv"
+    `include "conv_ready_busy_timeout_test.sv"
 endpackage
