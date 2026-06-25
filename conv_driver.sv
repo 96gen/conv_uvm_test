@@ -23,6 +23,9 @@ class conv_driver extends uvm_driver #(conv_seq_item);
                 req.reset_cycles, req.ready_delay_cycles, req.ready_pulse_cycles, req.reset_inflight),
             UVM_LOW)
             basic_phase(req);
+            if (req.inject_ready_while_busy) begin
+                inject_ready_during_busy();
+            end
             if (req.drive_dut_input) begin
                 drive_dut_input_from_dat(req);
             end
@@ -32,6 +35,26 @@ class conv_driver extends uvm_driver #(conv_seq_item);
             seq_item_port.item_done();
             `uvm_info("CONV_DRIVER", "item done", UVM_LOW);
         end 
+    endtask
+
+    task inject_ready_during_busy();
+        int unsigned wait_cycles = 0;
+
+        while (!vif.busy && wait_cycles < 100) begin
+            @(negedge vif.clk);
+            wait_cycles++;
+        end
+
+        if (!vif.busy) begin
+            `uvm_error("CONV_DRIVER", "cannot inject ready while busy because busy stayed low")
+            return;
+        end
+
+        @(negedge vif.clk);
+        vif.ready <= 1'b1;
+        `uvm_info("CONV_DRIVER", "injected ready while busy", UVM_LOW)
+        @(negedge vif.clk);
+        vif.ready <= 1'b0;
     endtask
 
     task basic_phase(conv_seq_item req);
@@ -154,7 +177,6 @@ class conv_driver extends uvm_driver #(conv_seq_item);
             @(negedge vif.clk);
             vif.ready <= 1'b1;
             repeat (req.ready_pulse_cycles) @(posedge vif.clk);
-            @(negedge vif.clk);
             vif.ready <= 1'b0;
             `uvm_info("CONV_DRIVER", "ready pulse after reset done", UVM_LOW)
         end

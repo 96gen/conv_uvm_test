@@ -11,6 +11,7 @@ class conv_basic_sequence extends uvm_sequence #(conv_seq_item);
     int unsigned reset_at_cycle;
     int unsigned reset_hold_cycles;
     bit rerun_after_reset;
+    bit inject_ready_while_busy;
 
     function new(string name = "conv_basic_sequence");
         super.new(name);
@@ -27,8 +28,9 @@ class conv_basic_sequence extends uvm_sequence #(conv_seq_item);
             void'(uvm_config_db#(int unsigned)::get(get_sequencer(), "", "reset_at_cycle", reset_at_cycle));
             void'(uvm_config_db#(int unsigned)::get(get_sequencer(), "", "reset_hold_cycles", reset_hold_cycles));
             void'(uvm_config_db#(bit)::get(get_sequencer(), "", "rerun_after_reset", rerun_after_reset));
+            void'(uvm_config_db#(bit)::get(get_sequencer(), "", "inject_ready_while_busy", inject_ready_while_busy));
             for (int i = 0; i < item_count; i++) begin
-                send_item(10 + i*10, i, i+1);
+                send_item(10 + i*10, i, 1);
             end
         endtask
 
@@ -52,6 +54,7 @@ class conv_basic_sequence extends uvm_sequence #(conv_seq_item);
             req.reset_at_cycle = reset_at_cycle;
             req.reset_hold_cycles = reset_hold_cycles;
             req.rerun_after_reset = rerun_after_reset;
+            req.inject_ready_while_busy = inject_ready_while_busy;
             finish_item(req);
 
             `uvm_info("CONV_SEQ",

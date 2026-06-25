@@ -22,6 +22,7 @@ class conv_test extends uvm_test;
     int unsigned reset_at_cycle = 0;
     int unsigned reset_hold_cycles = 0;
     bit rerun_after_reset = 0;
+    bit inject_ready_while_busy = 0;
     `uvm_component_utils(conv_test);
 
     function new(string name = "conv_test", uvm_component parent = null);
@@ -54,6 +55,7 @@ class conv_test extends uvm_test;
         uvm_config_db#(int unsigned)::set(this, "*", "reset_at_cycle", reset_at_cycle);
         uvm_config_db#(int unsigned)::set(this, "*", "reset_hold_cycles", reset_hold_cycles);
         uvm_config_db#(bit)::set(this, "*", "rerun_after_reset", rerun_after_reset);
+        uvm_config_db#(bit)::set(this, "*", "inject_ready_while_busy", inject_ready_while_busy);
         seq = conv_basic_sequence::type_id::create("seq");
         env = conv_env::type_id::create("env", this);
     endfunction

@@ -20,6 +20,15 @@ module top();
         .cdata_rd (vif.cdata_rd),
         .csel     (vif.csel)
     );
+    conv_assertions protocol_checker(
+        .clk   (clk),
+        .reset (vif.reset),
+        .busy  (vif.busy),
+        .ready (vif.ready),
+        .cwr   (vif.cwr),
+        .crd   (vif.crd),
+        .csel  (vif.csel)
+    );
     initial begin
         uvm_config_db#(virtual CONV_IF)::set(null, "*", "vif", vif);
         run_test();

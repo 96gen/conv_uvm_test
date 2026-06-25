@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "reset_inflight", "negative")]
+  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "reset_inflight", "protocol", "protocol_negative", "negative")]
   [string]$Test = "all"
 )
 
@@ -58,6 +58,7 @@ function Compile-Smoke {
     "conv_if.sv",
     "conv_pkg.sv",
     "CONV.v",
+    "conv_assertions.sv",
     "top.sv"
   )
 
@@ -268,6 +269,33 @@ $cases = @(
       "received expected ready count=2",
       "observed expected layer1 write count=1024",
       "layer1 expected compare passed count=1024",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
+    Key = "protocol"
+    Name = "protocol checker smoke"
+    UvmTest = "conv_layer1_path_smoke_test"
+    ExpectedErrors = 0
+    RequiredPatterns = @(
+      "protocol checker enabled",
+      "observed layer0 write",
+      "observed layer0 read",
+      "observed layer1 write",
+      "UVM_ERROR\s*:\s*0",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
+    Key = "protocol_negative"
+    Name = "protocol negative smoke"
+    UvmTest = "conv_protocol_negative_test"
+    ExpectedErrors = 1
+    RequiredPatterns = @(
+      "injected ready while busy",
+      "\[READY_WHILE_BUSY\]",
+      "received expected ready count=2",
+      "UVM_ERROR\s*:\s*1",
       "UVM_FATAL\s*:\s*0"
     )
   },
