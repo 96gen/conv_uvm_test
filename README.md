@@ -173,3 +173,9 @@ The project demonstrates one shared UVM environment across three scenario famili
 3. Expected-fail RTL fault injection with exact checker signatures.
 
 The important result is not merely that the DUT passes. The same environment also proves that data, address, protocol, reset, range, and timeout defects are detected at the intended verification layer.
+
+## Interview Materials
+
+- [Architecture and responsibility guide](docs/interview_architecture.md)
+- [Complete verification test matrix](docs/test_matrix.md)
+- [Reset, duplicate-address, and liveness debug stories](docs/debug_stories.md)
