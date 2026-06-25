@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "l0_addr_map", "l1_addr_map", "reset_inflight", "protocol", "protocol_negative", "fault_l0_data", "fault_l1_data", "fault_illegal_csel", "fault_missing_l0", "fault_duplicate_l1", "fault_l1_addr_oob", "negative")]
+  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "l0_addr_map", "l1_addr_map", "reset_protocol", "reset_inflight", "protocol", "protocol_negative", "fault_l0_data", "fault_l1_data", "fault_illegal_csel", "fault_missing_l0", "fault_duplicate_l1", "fault_l1_addr_oob", "fault_reset_protocol", "negative")]
   [string]$Test = "all"
 )
 
@@ -37,6 +37,10 @@ switch ($Test) {
   "fault_l1_addr_oob" {
     $DutSource = "CONV_buggy.v"
     $CompileDefines += "+define+FI_ASSERT_L1_ADDR_OOB"
+  }
+  "fault_reset_protocol" {
+    $DutSource = "CONV_buggy.v"
+    $CompileDefines += "+define+FI_ASSERT_RESET_PROTOCOL"
   }
 }
 
@@ -331,6 +335,19 @@ $cases = @(
     )
   },
   [pscustomobject]@{
+    Key = "reset_protocol"
+    Name = "reset protocol smoke"
+    UvmTest = "conv_reset_protocol_fault_test"
+    ExpectedErrors = 0
+    RunInAll = $false
+    RequiredPatterns = @(
+      "protocol checker enabled",
+      "received expected ready count=0",
+      "UVM_ERROR\s*:\s*0",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
     Key = "protocol"
     Name = "protocol checker smoke"
     UvmTest = "conv_layer1_path_smoke_test"
@@ -437,6 +454,19 @@ $cases = @(
     RequiredPatterns = @(
       "\[L1_ADDR_OOB\] layer1 write address out of range=1024",
       "observed layer1 write",
+      "UVM_ERROR\s*:\s*1",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
+    Key = "fault_reset_protocol"
+    Name = "reset protocol fault smoke"
+    UvmTest = "conv_reset_protocol_fault_test"
+    ExpectedErrors = 1
+    RunInAll = $false
+    RequiredPatterns = @(
+      "\[RESET_CWR\] cwr must be low while reset is asserted",
+      "received expected ready count=0",
       "UVM_ERROR\s*:\s*1",
       "UVM_FATAL\s*:\s*0"
     )
