@@ -12,6 +12,7 @@ flowchart LR
         IF["CONV_IF"]
         DUT["CONV.v or CONV_buggy.v"]
         PC["Procedural protocol checker"]
+        SVA["SVA checker hooks"]
     end
 
     subgraph UVM["UVM environment"]
@@ -37,6 +38,7 @@ flowchart LR
     MON --> MEM
     MEM --> IF
     IF --> PC
+    IF --> SVA
 ```
 
 `CONV_IF` belongs in `top.sv`, not inside the agent. It represents the physical DUT boundary and is distributed to UVM components through `uvm_config_db`.
@@ -51,25 +53,27 @@ flowchart LR
 | Observation | `conv_monitor.sv` | Convert ready/read/write activity into analysis transactions |
 | External memory behavior | `conv_l0_mem_model.sv` | Store Layer0 writes and feed pooling reads back to the DUT |
 | Data and structural checking | `conv_scoreboard.sv` | Golden compare, count checks, address completeness, duplicate/missing detection |
-| Protocol and liveness checking | `conv_assertions.sv` | Reset rules, csel legality, address range, ready/busy exclusion, bounded response |
-| Reach tracking | `conv_coverage.sv` | Transaction-level ready/read/write counters |
+| Protocol and liveness checking | `conv_assertions.sv`, `conv_sva.sv` | Reset rules, csel legality, address range, ready/busy exclusion, bounded response |
+| Reach tracking | `conv_coverage.sv` | Transaction-level ready/read/write/reset/address buckets and fault-class bins |
 | Automation | `run_smoke.ps1`, `run_final_regression.ps1` | Compile selection, expected signatures, exact error gates, final matrix |
 
 ## Data Path
 
-1. The driver loads `cnn_sti.dat`.
-2. At each stable address boundary, it drives `idata` from the DUT's `iaddr`.
-3. Layer0 writes are observed and stored by the memory model.
-4. Pooling reads are served through `cdata_rd`.
-5. The monitor publishes write/read transactions.
-6. The scoreboard compares Layer0 and Layer1 writes against supplied golden files.
-7. Address bitmaps prove completeness and detect duplicate/missing locations.
+1. The test selects either the default dataset or a generated dataset root.
+2. The driver loads `cnn_sti.dat`.
+3. At each stable address boundary, it drives `idata` from the DUT's `iaddr`.
+4. Layer0 writes are observed and stored by the memory model.
+5. Pooling reads are served through `cdata_rd`.
+6. The monitor publishes write/read transactions.
+7. The scoreboard compares Layer0 and Layer1 writes against supplied or generated golden files.
+8. Address bitmaps prove completeness and detect duplicate/missing locations.
 
 ## Control and Protocol Path
 
 - Reset and ready timing are transaction-controlled.
 - Reset-in-flight asserts reset while the DUT is busy, then restarts the same environment.
 - The procedural checker samples stable signals at `negedge clk`.
+- `conv_sva.sv` mirrors selected protocol faults with ModelSim-compatible SV assertion IDs.
 - Reset violations are reported once per reset episode.
 - Ready-to-busy liveness starts on a ready request and requires busy within eight cycles.
 
@@ -87,6 +91,18 @@ fault selection:     +define+FI_...
 
 This separation is important: a fault test passes only when the intended checker signature appears with the exact expected UVM error count and zero UVM fatals.
 
+Fault-class coverage is also selected from the script. Expected-fail tests pass only when the intended checker evidence and the intended `fault_class=<name> id=<id> covered` anchor both appear.
+
+## Dataset Architecture
+
+`run_smoke.ps1` supports `-DatasetRoot` and passes it to UVM as `+CONV_DATASET_ROOT`. The checked-in datasets remain untouched. Generated datasets are created under the local `reports/` tree:
+
+| Dataset test | Data source | Proof |
+|---|---|---|
+| `zero_dataset` | all-zero image plus generated `01310` L0/L1 expected data | Full L0/L1 golden compare |
+| `high_value_dataset` | all-`7FFFF` image | Full Layer1 address-map path |
+| `border_dataset` | high border frame, zero interior | Full Layer1 address-map path |
+
 ## Strong Interview Claims
 
 - The environment checks real DUT output, not only UVM component connectivity.
@@ -95,10 +111,11 @@ This separation is important: a fault test passes only when the intended checker
 - Reset recovery is followed by a complete Layer1 golden compare.
 - Protocol faults and data faults are checked by different verification layers.
 - Liveness is bounded, so a stalled DUT produces a deterministic failure instead of a hanging simulation.
+- Dataset expansion is honest about proof level: zero is golden, high/border are path and address-map stress.
 
 ## Deliberate Limitations
 
-- `conv_assertions.sv` is a procedural checker, not a formal SVA library.
-- Coverage is transaction-level rather than internal FSM/cross coverage.
-- Golden closure currently uses one supplied image dataset.
+- ModelSim ASE limits concurrent SVA and covergroup runtime support; the local regression uses immediate SV assertion hooks and counter fallback while preserving covergroup-ready code behind `CONV_ENABLE_COVERGROUPS`.
+- Coverage is transaction and fault-class coverage rather than internal FSM/cross coverage.
+- Golden closure currently uses the supplied image dataset and generated zero dataset.
 - The scripts target Windows ModelSim ASE and a configured UVM 1.2 path.

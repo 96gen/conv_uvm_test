@@ -96,6 +96,75 @@ A bounded response rule converts a hang into a local, reproducible, diagnosable 
 
 > I treated progress as a protocol requirement. Once ready is accepted as a request, busy must respond within eight cycles even if ready is only a pulse. The clean DUT responded in one cycle, while the injected DUT produced one exact timeout error instead of hanging the regression.
 
+## Story 4: Tool Limits Changed the Checker Implementation, Not the Verification Intent
+
+### Initial risk
+
+The project needed SVA-style protocol evidence, but the local simulator is ModelSim ASE 10.5b. It compiles assertion syntax, yet full concurrent SVA and covergroup runtime features require Questa licenses in this environment.
+
+### Verification approach
+
+The checker was split into two layers:
+
+- `conv_assertions.sv` remains the procedural checker used by the core regression.
+- `conv_sva.sv` provides ModelSim-compatible immediate SV assertion hooks with fixed SVA-prefixed IDs.
+- `conv_coverage.sv` keeps real covergroup bins behind `CONV_ENABLE_COVERGROUPS`, while local ModelSim runs use the same transaction categories as counter fallback.
+
+### Evidence
+
+The fault regression requires both checker families for selected protocol faults:
+
+```text
+CWR illegal csel: [CWR_ILLEGAL_CSEL] and [SVA_CWR_ILLEGAL_CSEL]
+Layer1 OOB:       [L1_ADDR_OOB] and [SVA_L1_ADDR_OOB]
+Reset protocol:   [RESET_CWR] and [SVA_RESET_CWR]
+Ready timeout:    [READY_BUSY_TIMEOUT] and [SVA_READY_BUSY_TIMEOUT]
+```
+
+Each expected-fail test also requires:
+
+```text
+fault_class=<name> id=<id> covered
+```
+
+### Engineering lesson
+
+Good verification work should separate intent from tool mechanics. The project keeps the assertion and coverage architecture visible, but it also keeps the regression runnable on the available simulator.
+
+### Interview version
+
+> I originally reached for concurrent SVA and covergroups, then confirmed that ModelSim ASE would not execute those features without Questa support. Rather than pretend the tool could do something it could not, I kept the SVA and coverage structure but added a ModelSim-compatible runtime path. The regression still proves the intended IDs and fault classes.
+
+## Story 5: Dataset Expansion Was Staged to Avoid Fake Golden Confidence
+
+### Initial risk
+
+Adding more `.dat` inputs is easy. Claiming they are numerically verified is only valid if the expected output is independently trustworthy.
+
+### Verification approach
+
+Dataset support was staged:
+
+- First, `+CONV_DATASET_ROOT` proved the test could select a dataset path.
+- Then `zero_dataset` generated input and L0/L1 expected files under `reports/`; zero input has a simple known expected value of `01310` because the DUT still applies bias and rounding.
+- Finally, high-value and border-sensitive datasets were added as path/count/address regressions, not as independent numerical golden closure.
+
+### Evidence
+
+```text
+zero_dataset:       Layer0 4096/4096 and Layer1 1024/1024 golden compare
+high_value_dataset: Layer1 address map passed unique=1024 expected=1024
+border_dataset:     Layer1 address map passed unique=1024 expected=1024
+```
+
+### Engineering lesson
+
+More data is useful only when the proof level is honest. A dataset can be valuable for path stress before it becomes a golden numerical regression.
+
+### Interview version
+
+> I expanded datasets in two layers. The zero dataset has a real expected-output proof, so it is a golden regression. The high-value and border-sensitive datasets currently prove that the driver, memory feedback, and address map survive new stimulus classes. I would only call them golden after adding an independent reference generator.
+
 ## Debug Discipline Used Across the Project
 
 1. Separate simulator crashes from UVM failures.
@@ -104,3 +173,4 @@ A bounded response rule converts a hang into a local, reproducible, diagnosable 
 4. Keep expected-fail tests at `UVM_FATAL : 0`.
 5. Reuse the same environment for clean and buggy DUT variants.
 6. Check end-state correctness after recovery scenarios.
+7. Do not overstate a dataset's proof level.

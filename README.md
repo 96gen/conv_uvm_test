@@ -16,6 +16,9 @@ The environment currently proves:
 - Duplicate, missing, illegal, and out-of-range address detection.
 - Reset protocol and reset-in-flight recovery.
 - Ready/busy protocol and bounded ready-to-busy liveness.
+- ModelSim-compatible SVA checker hooks for selected protocol faults.
+- Transaction coverage with covergroup-ready bins and ModelSim counter fallback.
+- Generated dataset regression for zero, high-value, and border-sensitive inputs.
 - Eight expected-fail DUT fault scenarios using the same checker stack.
 
 ## Architecture
@@ -31,25 +34,26 @@ flowchart LR
     DUT --> IF
     IF --> MON["Monitor"]
     MON --> SB["Scoreboard"]
-    MON --> COV["Coverage counters"]
+    MON --> COV["Coverage bins / counters"]
     MON --> MEM["Layer0 memory model"]
     MEM --> IF
 
     IF --> CHECK["Procedural protocol checker"]
+    IF --> SVA["SVA protocol checker"]
 ```
 
 `CONV_IF` is instantiated in `top.sv`, outside the agent. The agent owns the sequencer, driver, and monitor. The monitor publishes observed ready, read, and write activity to the scoreboard, coverage subscriber, and Layer0 memory model.
 
 ### Data Flow
 
-1. A test configures sequence length, `.dat` paths, drive duration, expected counts, and checker modes.
+1. A test configures sequence length, dataset root, `.dat` paths, drive duration, expected counts, and checker modes.
 2. `conv_basic_sequence` transfers those settings through `conv_seq_item`.
 3. `conv_driver` applies reset/ready and drives `idata` using the DUT's registered `iaddr`.
 4. The DUT writes Layer0 data through `cwr/caddr_wr/cdata_wr`.
 5. `conv_l0_mem_model` stores Layer0 writes and returns `cdata_rd` for pooling reads.
 6. `conv_monitor` converts bus activity into analysis transactions.
 7. `conv_scoreboard` checks golden data, counts, and address maps.
-8. `conv_assertions.sv` checks protocol, reset, range, and liveness rules.
+8. `conv_assertions.sv` and `conv_sva.sv` check protocol, reset, range, and liveness rules.
 
 ## One-Command Final Regression
 
@@ -59,10 +63,12 @@ Run the complete interview regression:
 powershell -ExecutionPolicy Bypass -File .\run_final_regression.ps1
 ```
 
-The final runner executes 16 ordered gates:
+The final runner executes 19 ordered gates:
 
 - Default smoke regression.
 - Layer0 and Layer1 golden comparisons.
+- Zero dataset golden comparison.
+- High-value and border-sensitive dataset path checks.
 - Layer0 and Layer1 address maps.
 - Reset-in-flight recovery.
 - Reset protocol and ready-to-busy liveness baselines.
@@ -94,6 +100,9 @@ Use `run_smoke.ps1` for focused debugging:
 powershell -ExecutionPolicy Bypass -File .\run_smoke.ps1 -Test l1_expected
 powershell -ExecutionPolicy Bypass -File .\run_smoke.ps1 -Test reset_inflight
 powershell -ExecutionPolicy Bypass -File .\run_smoke.ps1 -Test fault_duplicate_l1
+powershell -ExecutionPolicy Bypass -File .\run_smoke.ps1 -Test zero_dataset
+powershell -ExecutionPolicy Bypass -File .\run_smoke.ps1 -Test high_value_dataset
+powershell -ExecutionPolicy Bypass -File .\run_smoke.ps1 -Test border_dataset
 ```
 
 ### Baseline and Functional Matrix
@@ -103,6 +112,9 @@ powershell -ExecutionPolicy Bypass -File .\run_smoke.ps1 -Test fault_duplicate_l
 | `all` | Base UVM plumbing, scenarios, data drive, memory feedback, protocol positive/negative paths |
 | `l0_expected` | Layer0 golden compare, 4096/4096 |
 | `l1_expected` | Layer1 golden compare, 1024/1024 |
+| `zero_dataset` | Generated zero image, generated L0/L1 golden, 4096/4096 and 1024/1024 |
+| `high_value_dataset` | Generated high positive image through full Layer1 address-map path |
+| `border_dataset` | Generated high-value border frame through full Layer1 address-map path |
 | `l0_addr_map` | Layer0 unique addresses 0-4095 |
 | `l1_addr_map` | Layer1 unique addresses 0-1023 |
 | `reset_inflight` | Reset during busy, restart, and post-reset Layer1 golden compare |
@@ -117,12 +129,14 @@ An expected-fail case passes only when its required checker signature appears wi
 |---|---|---|
 | `fault_l0_data` | `FI_BUG1_L0_DATA` | Layer0 mismatch at address 123 |
 | `fault_l1_data` | `FI_BUG2_L1_DATA` | Layer1 mismatch at address 17 |
-| `fault_illegal_csel` | `FI_ASSERT_ILLEGAL_CSEL` | `[CWR_ILLEGAL_CSEL]`, `csel=010` |
+| `fault_illegal_csel` | `FI_ASSERT_ILLEGAL_CSEL` | `[CWR_ILLEGAL_CSEL]` and `[SVA_CWR_ILLEGAL_CSEL]`, `csel=010` |
 | `fault_missing_l0` | `FI_BUG3_MISSING_L0` | `[L0_ADDR_MISSING]`, address 123 |
 | `fault_duplicate_l1` | `FI_BUG4_L1_DUP_ADDR` | Duplicate address 0 and missing address 1 |
-| `fault_l1_addr_oob` | `FI_ASSERT_L1_ADDR_OOB` | `[L1_ADDR_OOB]`, address 1024 |
-| `fault_reset_protocol` | `FI_ASSERT_RESET_PROTOCOL` | `[RESET_CWR]` once per reset episode |
-| `fault_ready_busy_timeout` | `FI_ASSERT_READY_BUSY_TIMEOUT` | `[READY_BUSY_TIMEOUT]` after eight cycles |
+| `fault_l1_addr_oob` | `FI_ASSERT_L1_ADDR_OOB` | `[L1_ADDR_OOB]` and `[SVA_L1_ADDR_OOB]`, address 1024 |
+| `fault_reset_protocol` | `FI_ASSERT_RESET_PROTOCOL` | `[RESET_CWR]` and `[SVA_RESET_CWR]` once per reset episode |
+| `fault_ready_busy_timeout` | `FI_ASSERT_READY_BUSY_TIMEOUT` | `[READY_BUSY_TIMEOUT]` and `[SVA_READY_BUSY_TIMEOUT]` after eight cycles |
+
+Each expected-fail test also requires a `fault_class=<name> id=<id> covered` coverage anchor.
 
 ## Key Files
 
@@ -135,6 +149,9 @@ An expected-fail case passes only when its required checker signature appears wi
 | `conv_l0_mem_model.sv` | Layer0 storage and read feedback |
 | `conv_scoreboard.sv` | Golden compare, counts, missing/duplicate address checks |
 | `conv_assertions.sv` | Procedural protocol, reset, range, and liveness checker |
+| `conv_sva.sv` | ModelSim-compatible SV assertion hooks for protocol fault evidence |
+| `conv_dataset_golden_smoke_test.sv` | Dataset-root L0/L1 golden regression |
+| `conv_coverage.sv` | Covergroup-ready transaction and fault-class coverage counters |
 | `CONV_buggy.v` | Compile-time RTL fault-injection variants |
 | `run_smoke.ps1` | Single-case compiler and gate runner |
 | `run_final_regression.ps1` | Final 16-case regression orchestrator |
@@ -159,9 +176,9 @@ Update `$UvmSrc` if ModelSim is installed elsewhere.
 ## Known Limitations
 
 - ModelSim 10.5b intermittently exits with `SIGSEGV` while loading a compiled design. This occurs before UVM execution and is distinct from a checker failure. The final runner retries a failed case once and preserves each console log.
-- `conv_assertions.sv` is a procedural protocol checker, not a formal SVA property library.
-- Coverage is currently transaction/event counting rather than full internal FSM and cross-coverage closure.
-- Golden validation uses the supplied fixed image and expected-output datasets.
+- ModelSim ASE 10.5b does not run full concurrent SVA or covergroups without Questa features. `conv_sva.sv` therefore uses immediate SV assertions, and `conv_coverage.sv` keeps covergroups behind `CONV_ENABLE_COVERGROUPS` with a counter fallback for local smoke runs.
+- Coverage is transaction/fault-class coverage rather than internal FSM and cross-coverage closure.
+- Golden validation uses the supplied fixed image and the generated zero dataset. High-value and border-sensitive datasets currently prove path/count/address behavior, not independent numerical golden closure.
 - Simulator paths are Windows and ModelSim specific.
 
 ## Interview Positioning
@@ -179,4 +196,4 @@ The important result is not merely that the DUT passes. The same environment als
 - [Architecture and responsibility guide](docs/interview_architecture.md)
 - [Complete verification test matrix](docs/test_matrix.md)
 - [Reset, duplicate-address, and liveness debug stories](docs/debug_stories.md)
-- [Final 16/16 verification record](docs/final_verification.md)
+- [Final 19/19 verification record](docs/final_verification.md)
