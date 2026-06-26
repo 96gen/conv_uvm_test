@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "l0_addr_map", "l1_addr_map", "reset_protocol", "ready_busy_liveness", "reset_inflight", "protocol", "protocol_negative", "fault_l0_data", "fault_l1_data", "fault_illegal_csel", "fault_missing_l0", "fault_duplicate_l1", "fault_l1_addr_oob", "fault_reset_protocol", "fault_ready_busy_timeout", "negative")]
+  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "zero_dataset", "l0_addr_map", "l1_addr_map", "reset_protocol", "ready_busy_liveness", "reset_inflight", "protocol", "protocol_negative", "fault_l0_data", "fault_l1_data", "fault_illegal_csel", "fault_missing_l0", "fault_duplicate_l1", "fault_l1_addr_oob", "fault_reset_protocol", "fault_ready_busy_timeout", "negative")]
   [string]$Test = "all",
   [string]$DatasetRoot = ""
 )
@@ -59,6 +59,31 @@ function Has-Pattern {
     [string]$Pattern
   )
   return (($Lines | Select-String -Pattern $Pattern).Count -gt 0)
+}
+
+function Write-RepeatedHexFile {
+  param(
+    [string]$Path,
+    [string]$Value,
+    [int]$Count
+  )
+
+  $lines = New-Object string[] $Count
+  for ($i = 0; $i -lt $Count; $i++) {
+    $lines[$i] = $Value
+  }
+  [System.IO.File]::WriteAllLines($Path, $lines, [System.Text.Encoding]::ASCII)
+}
+
+function New-ZeroDataset {
+  $datasetDir = Join-Path $ReportDir "datasets\zero"
+  New-Item -ItemType Directory -Force -Path $datasetDir | Out-Null
+
+  Write-RepeatedHexFile -Path (Join-Path $datasetDir "cnn_sti.dat") -Value "00000" -Count 4096
+  Write-RepeatedHexFile -Path (Join-Path $datasetDir "cnn_layer0_exp0.dat") -Value "01310" -Count 4096
+  Write-RepeatedHexFile -Path (Join-Path $datasetDir "cnn_layer1_exp0.dat") -Value "01310" -Count 1024
+
+  return $datasetDir
 }
 
 function Run-Cmd {
@@ -320,6 +345,21 @@ $cases = @(
     )
   },
   [pscustomobject]@{
+    Key = "zero_dataset"
+    Name = "zero dataset golden smoke"
+    UvmTest = "conv_dataset_golden_smoke_test"
+    ExpectedErrors = 0
+    RunInAll = $false
+    RequiredPatterns = @(
+      "dataset root=.*zero",
+      "opened dat file .*cnn_sti.dat",
+      "layer0 expected compare passed count=4096",
+      "layer1 expected compare passed count=1024",
+      "UVM_ERROR\s*:\s*0",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
     Key = "l0_addr_map"
     Name = "layer0 address map smoke"
     UvmTest = "conv_l0_address_map_smoke_test"
@@ -566,6 +606,10 @@ $cases = @(
     )
   }
 )
+
+if ($Test -eq "zero_dataset") {
+  $SimDatasetRoot = (New-ZeroDataset).Replace("\", "/").TrimEnd("/")
+}
 
 Compile-Smoke
 
