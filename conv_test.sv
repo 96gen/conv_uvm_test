@@ -4,6 +4,7 @@ class conv_test extends uvm_test;
     conv_basic_sequence seq;
     int item_count = 3;
     int expected_ready_count = 3;
+    string dataset_root;
     string img_file;
     int unsigned dat_sample_words;
     bit drive_dut_input = 0;
@@ -33,12 +34,28 @@ class conv_test extends uvm_test;
         super.new(name, parent);
     endfunction
 
+    function void apply_dataset_root();
+        void'($value$plusargs("CONV_DATASET_ROOT=%s", dataset_root));
+        if (dataset_root != "") begin
+            if (img_file != "")
+                img_file = {dataset_root, "/", img_file};
+            if (expected_l0_file != "")
+                expected_l0_file = {dataset_root, "/", expected_l0_file};
+            if (expected_l1_file != "")
+                expected_l1_file = {dataset_root, "/", expected_l1_file};
+            `uvm_info("CONV_TEST",
+                $sformatf("dataset root=%s", dataset_root),
+                UVM_LOW)
+        end
+    endfunction
+
     function void build_phase(uvm_phase phase);
         super.build_phase(phase);
         if (!uvm_config_db#(virtual CONV_IF)::get(this, "", "vif", vif)) begin
             `uvm_fatal("CONV_TEST", "cannot get vif");
         end
         `uvm_info("CONV_TEST", "connect to vif", UVM_LOW);
+        apply_dataset_root();
         uvm_config_db#(int)::set(this, "*", "item_count", item_count);
         uvm_config_db#(int)::set(this, "*", "expected_ready_count", expected_ready_count);
         uvm_config_db#(string)::set(this, "*", "img_file", img_file);

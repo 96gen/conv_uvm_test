@@ -1,6 +1,7 @@
 param(
   [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "l0_addr_map", "l1_addr_map", "reset_protocol", "ready_busy_liveness", "reset_inflight", "protocol", "protocol_negative", "fault_l0_data", "fault_l1_data", "fault_illegal_csel", "fault_missing_l0", "fault_duplicate_l1", "fault_l1_addr_oob", "fault_reset_protocol", "fault_ready_busy_timeout", "negative")]
-  [string]$Test = "all"
+  [string]$Test = "all",
+  [string]$DatasetRoot = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -12,6 +13,7 @@ $ReportDir = Join-Path $Root ("reports\smoke_{0}" -f $RunStamp)
 $Lib = "smoke_$RunStamp"
 $DutSource = "CONV.v"
 $CompileDefines = @()
+$SimDatasetRoot = $DatasetRoot.Replace("\", "/").TrimEnd("/")
 
 switch ($Test) {
   "fault_l0_data" {
@@ -137,6 +139,9 @@ function Run-SmokeCase {
     $vsimArgs += "+CONV_FAULT_CLASS_ID=$FaultClassId"
     $vsimArgs += "+CONV_FAULT_CLASS_NAME=$FaultClassName"
   }
+  if ($SimDatasetRoot -ne "") {
+    $vsimArgs += "+CONV_DATASET_ROOT=$SimDatasetRoot"
+  }
   $vsimArgs += @("-do", "run -all; quit -f")
 
   $result = Run-Cmd -Log $simLog -Command {
@@ -209,7 +214,7 @@ $cases = @(
     UvmTest = "conv_dat_smoke_test"
     ExpectedErrors = 0
     RequiredPatterns = @(
-      "opened dat file cnn_sti.dat",
+      "opened dat file .*cnn_sti.dat",
       "read dat sample",
       "received expected ready count=1",
       "ready_seen_count=1",
@@ -222,7 +227,7 @@ $cases = @(
     UvmTest = "conv_dut_input_drive_test"
     ExpectedErrors = 0
     RequiredPatterns = @(
-      "opened dat file cnn_sti.dat",
+      "opened dat file .*cnn_sti.dat",
       "read dat sample",
       "drive idata",
       "observed busy high",
@@ -237,7 +242,7 @@ $cases = @(
     UvmTest = "conv_layer0_write_smoke_test"
     ExpectedErrors = 0
     RequiredPatterns = @(
-      "opened dat file cnn_sti.dat",
+      "opened dat file .*cnn_sti.dat",
       "drive idata",
       "observed layer0 write",
       "layer0 write check passed",
@@ -252,7 +257,7 @@ $cases = @(
     UvmTest = "conv_layer1_path_smoke_test"
     ExpectedErrors = 0
     RequiredPatterns = @(
-      "opened dat file cnn_sti.dat",
+      "opened dat file .*cnn_sti.dat",
       "drive idata",
       "observed layer0 write",
       "observed layer0 read",
@@ -271,7 +276,7 @@ $cases = @(
     UvmTest = "conv_l0_mem_feedback_smoke_test"
     ExpectedErrors = 0
     RequiredPatterns = @(
-      "opened dat file cnn_sti.dat",
+      "opened dat file .*cnn_sti.dat",
       "observed layer0 write",
       "served layer0 read",
       "observed layer0 read",
@@ -291,7 +296,7 @@ $cases = @(
     ExpectedErrors = 0
     RunInAll = $false
     RequiredPatterns = @(
-      "loaded layer0 expected file cnn_layer0_exp0.dat count=4096",
+      "loaded layer0 expected file .*cnn_layer0_exp0.dat count=4096",
       "observed layer0 write",
       "served layer0 read",
       "layer0 expected compare passed count=4096",
@@ -306,7 +311,7 @@ $cases = @(
     ExpectedErrors = 0
     RunInAll = $false
     RequiredPatterns = @(
-      "loaded layer1 expected file cnn_layer1_exp0.dat count=1024",
+      "loaded layer1 expected file .*cnn_layer1_exp0.dat count=1024",
       "served layer0 read",
       "observed layer1 write",
       "layer1 expected compare passed count=1024",
@@ -418,7 +423,7 @@ $cases = @(
     FaultClassId = 1
     FaultClassName = "l0_data"
     RequiredPatterns = @(
-      "loaded layer0 expected file cnn_layer0_exp0.dat count=4096",
+      "loaded layer0 expected file .*cnn_layer0_exp0.dat count=4096",
       "fault_class=l0_data id=1 covered",
       "layer0 expected mismatch addr=123",
       "layer0 expected compare failed",
@@ -435,7 +440,7 @@ $cases = @(
     FaultClassId = 2
     FaultClassName = "l1_data"
     RequiredPatterns = @(
-      "loaded layer1 expected file cnn_layer1_exp0.dat count=1024",
+      "loaded layer1 expected file .*cnn_layer1_exp0.dat count=1024",
       "fault_class=l1_data id=2 covered",
       "layer1 expected mismatch addr=17",
       "layer1 expected compare failed pass=1023 mismatch=1 expected=1024",
