@@ -99,6 +99,7 @@ function Compile-Smoke {
     "conv_pkg.sv",
     $DutSource,
     "conv_assertions.sv",
+    "conv_sva.sv",
     "top.sv"
   )
 

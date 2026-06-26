@@ -30,6 +30,16 @@ module top();
         .csel  (vif.csel),
         .caddr_wr (vif.caddr_wr)
     );
+    conv_sva sva_checker(
+        .clk      (clk),
+        .reset    (vif.reset),
+        .busy     (vif.busy),
+        .ready    (vif.ready),
+        .cwr      (vif.cwr),
+        .crd      (vif.crd),
+        .csel     (vif.csel),
+        .caddr_wr (vif.caddr_wr)
+    );
     initial begin
         uvm_config_db#(virtual CONV_IF)::set(null, "*", "vif", vif);
         run_test();
