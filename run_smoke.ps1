@@ -424,13 +424,15 @@ $cases = @(
     Key = "fault_illegal_csel"
     Name = "illegal csel protocol fault smoke"
     UvmTest = "conv_protocol_csel_fault_test"
-    ExpectedErrors = 1
+    ExpectedErrors = 2
     RunInAll = $false
     RequiredPatterns = @(
       "protocol checker enabled",
+      "sva protocol checker enabled",
       "observed layer0 write",
       "\[CWR_ILLEGAL_CSEL\] cwr requires csel 001 or 011, got 010",
-      "UVM_ERROR\s*:\s*1",
+      "\[SVA_CWR_ILLEGAL_CSEL\] cwr requires csel 001 or 011, got 010",
+      "UVM_ERROR\s*:\s*2",
       "UVM_FATAL\s*:\s*0"
     )
   },
@@ -467,12 +469,13 @@ $cases = @(
     Key = "fault_l1_addr_oob"
     Name = "layer1 address out-of-range fault smoke"
     UvmTest = "conv_layer1_path_smoke_test"
-    ExpectedErrors = 1
+    ExpectedErrors = 2
     RunInAll = $false
     RequiredPatterns = @(
       "\[L1_ADDR_OOB\] layer1 write address out of range=1024",
+      "\[SVA_L1_ADDR_OOB\] layer1 write address out of range=1024",
       "observed layer1 write",
-      "UVM_ERROR\s*:\s*1",
+      "UVM_ERROR\s*:\s*2",
       "UVM_FATAL\s*:\s*0"
     )
   },
@@ -480,12 +483,13 @@ $cases = @(
     Key = "fault_reset_protocol"
     Name = "reset protocol fault smoke"
     UvmTest = "conv_reset_protocol_fault_test"
-    ExpectedErrors = 1
+    ExpectedErrors = 2
     RunInAll = $false
     RequiredPatterns = @(
       "\[RESET_CWR\] cwr must be low while reset is asserted",
+      "\[SVA_RESET_CWR\] cwr must be low while reset is asserted",
       "received expected ready count=0",
-      "UVM_ERROR\s*:\s*1",
+      "UVM_ERROR\s*:\s*2",
       "UVM_FATAL\s*:\s*0"
     )
   },
@@ -493,12 +497,13 @@ $cases = @(
     Key = "fault_ready_busy_timeout"
     Name = "ready-to-busy timeout fault smoke"
     UvmTest = "conv_ready_busy_timeout_test"
-    ExpectedErrors = 1
+    ExpectedErrors = 2
     RunInAll = $false
     RequiredPatterns = @(
       "\[READY_BUSY_TIMEOUT\] busy did not assert within 8 cycles after ready",
+      "\[SVA_READY_BUSY_TIMEOUT\] busy did not assert within 8 cycles after ready",
       "received expected ready count=1",
-      "UVM_ERROR\s*:\s*1",
+      "UVM_ERROR\s*:\s*2",
       "UVM_FATAL\s*:\s*0"
     )
   },
