@@ -4,6 +4,7 @@ class conv_monitor extends uvm_monitor;
     uvm_analysis_port #(conv_mem_wr_tr) ap;
     bit inject_bad_ready_tr;
     bit prev_ready;
+    bit prev_reset;
 
     function new(string name = "conv_monitor", uvm_component parent = null);
         super.new(name, parent);
@@ -22,8 +23,18 @@ class conv_monitor extends uvm_monitor;
     task run_phase(uvm_phase phase);
         super.run_phase(phase);
         prev_ready = 1'b0;
+        prev_reset = 1'b0;
         forever begin
             @(posedge vif.clk);
+            if(vif.reset && !prev_reset) begin
+                conv_mem_wr_tr tr;
+                tr = conv_mem_wr_tr::type_id::create("tr");
+                tr.reset_seen = 1'b1;
+                ap.write(tr);
+                `uvm_info("CONV_MONITOR", "observed reset", UVM_LOW)
+            end
+            prev_reset = vif.reset;
+
             if(vif.ready && !prev_ready) begin
                 conv_mem_wr_tr tr;
                 tr = conv_mem_wr_tr::type_id::create("tr");

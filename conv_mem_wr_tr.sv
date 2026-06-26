@@ -1,5 +1,6 @@
 class conv_mem_wr_tr extends uvm_sequence_item;
   bit ready_seen;
+  bit reset_seen;
   bit write_seen;
   logic [2:0] csel;
   logic [11:0] caddr_wr;

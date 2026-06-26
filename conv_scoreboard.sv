@@ -75,6 +75,10 @@ class conv_scoreboard extends uvm_component;
     endfunction
 
     function void write(conv_mem_wr_tr tr);
+        if (tr.reset_seen) begin
+            return;
+        end
+
         if (tr.write_seen) begin
             if (tr.is_layer0_write) begin
                 layer0_write_count++;
