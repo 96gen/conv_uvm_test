@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "zero_dataset", "l0_addr_map", "l1_addr_map", "reset_protocol", "ready_busy_liveness", "reset_inflight", "protocol", "protocol_negative", "fault_l0_data", "fault_l1_data", "fault_illegal_csel", "fault_missing_l0", "fault_duplicate_l1", "fault_l1_addr_oob", "fault_reset_protocol", "fault_ready_busy_timeout", "negative")]
+  [ValidateSet("all", "clean", "short", "long", "dat", "dut_input", "layer0_write", "layer1_path", "l0_mem_feedback", "l0_expected", "l1_expected", "zero_dataset", "high_value_dataset", "border_dataset", "l0_addr_map", "l1_addr_map", "reset_protocol", "ready_busy_liveness", "reset_inflight", "protocol", "protocol_negative", "fault_l0_data", "fault_l1_data", "fault_illegal_csel", "fault_missing_l0", "fault_duplicate_l1", "fault_l1_addr_oob", "fault_reset_protocol", "fault_ready_busy_timeout", "negative")]
   [string]$Test = "all",
   [string]$DatasetRoot = ""
 )
@@ -82,6 +82,36 @@ function New-ZeroDataset {
   Write-RepeatedHexFile -Path (Join-Path $datasetDir "cnn_sti.dat") -Value "00000" -Count 4096
   Write-RepeatedHexFile -Path (Join-Path $datasetDir "cnn_layer0_exp0.dat") -Value "01310" -Count 4096
   Write-RepeatedHexFile -Path (Join-Path $datasetDir "cnn_layer1_exp0.dat") -Value "01310" -Count 1024
+
+  return $datasetDir
+}
+
+function New-HighValueDataset {
+  $datasetDir = Join-Path $ReportDir "datasets\high_value"
+  New-Item -ItemType Directory -Force -Path $datasetDir | Out-Null
+
+  Write-RepeatedHexFile -Path (Join-Path $datasetDir "cnn_sti.dat") -Value "7FFFF" -Count 4096
+
+  return $datasetDir
+}
+
+function New-BorderDataset {
+  $datasetDir = Join-Path $ReportDir "datasets\border_sensitive"
+  New-Item -ItemType Directory -Force -Path $datasetDir | Out-Null
+
+  $lines = New-Object string[] 4096
+  for ($row = 0; $row -lt 64; $row++) {
+    for ($col = 0; $col -lt 64; $col++) {
+      $idx = ($row * 64) + $col
+      if ($row -eq 0 -or $row -eq 63 -or $col -eq 0 -or $col -eq 63) {
+        $lines[$idx] = "7FFFF"
+      }
+      else {
+        $lines[$idx] = "00000"
+      }
+    }
+  }
+  [System.IO.File]::WriteAllLines((Join-Path $datasetDir "cnn_sti.dat"), $lines, [System.Text.Encoding]::ASCII)
 
   return $datasetDir
 }
@@ -360,6 +390,36 @@ $cases = @(
     )
   },
   [pscustomobject]@{
+    Key = "high_value_dataset"
+    Name = "high-value dataset path smoke"
+    UvmTest = "conv_l1_address_map_smoke_test"
+    ExpectedErrors = 0
+    RunInAll = $false
+    RequiredPatterns = @(
+      "dataset root=.*high_value",
+      "opened dat file .*cnn_sti.dat",
+      "layer1 address map passed unique=1024 expected=1024",
+      "observed expected layer1 write count=1024",
+      "UVM_ERROR\s*:\s*0",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
+    Key = "border_dataset"
+    Name = "border-sensitive dataset path smoke"
+    UvmTest = "conv_l1_address_map_smoke_test"
+    ExpectedErrors = 0
+    RunInAll = $false
+    RequiredPatterns = @(
+      "dataset root=.*border_sensitive",
+      "opened dat file .*cnn_sti.dat",
+      "layer1 address map passed unique=1024 expected=1024",
+      "observed expected layer1 write count=1024",
+      "UVM_ERROR\s*:\s*0",
+      "UVM_FATAL\s*:\s*0"
+    )
+  },
+  [pscustomobject]@{
     Key = "l0_addr_map"
     Name = "layer0 address map smoke"
     UvmTest = "conv_l0_address_map_smoke_test"
@@ -609,6 +669,12 @@ $cases = @(
 
 if ($Test -eq "zero_dataset") {
   $SimDatasetRoot = (New-ZeroDataset).Replace("\", "/").TrimEnd("/")
+}
+elseif ($Test -eq "high_value_dataset") {
+  $SimDatasetRoot = (New-HighValueDataset).Replace("\", "/").TrimEnd("/")
+}
+elseif ($Test -eq "border_dataset") {
+  $SimDatasetRoot = (New-BorderDataset).Replace("\", "/").TrimEnd("/")
 }
 
 Compile-Smoke
