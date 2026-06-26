@@ -16,6 +16,10 @@ class conv_coverage extends uvm_subscriber #(conv_mem_wr_tr);
     int addr_low_bucket_count = 0;
     int addr_mid_bucket_count = 0;
     int addr_high_bucket_count = 0;
+    int fault_class_id = 0;
+    string fault_class_name = "none";
+    bit fault_class_sampled = 0;
+    int fault_class_bin_count [0:8];
 
 `ifdef CONV_ENABLE_COVERGROUPS
     covergroup conv_bus_cg;
@@ -42,6 +46,17 @@ class conv_coverage extends uvm_subscriber #(conv_mem_wr_tr);
             bins mid = {[12'd64:12'd1023]};
             bins high = {[12'd1024:12'd4095]};
         }
+        fault_class_cp: coverpoint fault_class_id {
+            bins none = {0};
+            bins l0_data = {1};
+            bins l1_data = {2};
+            bins illegal_csel = {3};
+            bins missing_l0 = {4};
+            bins duplicate_l1 = {5};
+            bins l1_addr_oob = {6};
+            bins reset_protocol = {7};
+            bins ready_busy_timeout = {8};
+        }
     endgroup
 `endif
 
@@ -50,6 +65,12 @@ class conv_coverage extends uvm_subscriber #(conv_mem_wr_tr);
 `ifdef CONV_ENABLE_COVERGROUPS
         conv_bus_cg = new();
 `endif
+    endfunction
+
+    function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        void'($value$plusargs("CONV_FAULT_CLASS_ID=%d", fault_class_id));
+        void'($value$plusargs("CONV_FAULT_CLASS_NAME=%s", fault_class_name));
     endfunction
 
     function void write(conv_mem_wr_tr t);
@@ -73,6 +94,16 @@ class conv_coverage extends uvm_subscriber #(conv_mem_wr_tr);
                 addr_mid_bucket_count++;
             else
                 addr_high_bucket_count++;
+        end
+
+        if (fault_class_id > 0 && !fault_class_sampled) begin
+            if (fault_class_id <= 8)
+                fault_class_bin_count[fault_class_id]++;
+            fault_class_sampled = 1'b1;
+            `uvm_info("CONV_COVERAGE",
+                $sformatf("fault_class=%s id=%0d covered",
+                        fault_class_name, fault_class_id),
+                UVM_LOW)
         end
 
         if (t.reset_seen) begin
@@ -129,6 +160,13 @@ class conv_coverage extends uvm_subscriber #(conv_mem_wr_tr);
                     addr_low_bucket_count, addr_mid_bucket_count,
                     addr_high_bucket_count),
             UVM_LOW)
+        if (fault_class_id > 0) begin
+            `uvm_info("CONV_COVERAGE",
+                $sformatf("fault_class=%s id=%0d samples=%0d",
+                        fault_class_name, fault_class_id,
+                        (fault_class_id <= 8) ? fault_class_bin_count[fault_class_id] : 0),
+                UVM_LOW)
+        end
 `ifdef CONV_ENABLE_COVERGROUPS
         `uvm_info("CONV_COVERAGE",
             $sformatf("bus covergroup coverage=%0.2f", conv_bus_cg.get_inst_coverage()),

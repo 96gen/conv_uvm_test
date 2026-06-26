@@ -117,13 +117,30 @@ function Run-SmokeCase {
     [string]$Name,
     [string]$UvmTest,
     [int]$ExpectedErrors,
-    [string[]]$RequiredPatterns
+    [string[]]$RequiredPatterns,
+    [int]$FaultClassId = 0,
+    [string]$FaultClassName = "none"
   )
 
   $logName = ($Name -replace "\s+", "_").ToLower()
   $simLog = Join-Path $ReportDir "$logName.log"
+  $vsimArgs = @(
+    "-suppress", "19",
+    "-suppress", "8785",
+    "-c",
+    "-lib", $Lib,
+    "top",
+    "+UVM_NO_RELNOTES",
+    "+UVM_TESTNAME=$UvmTest"
+  )
+  if ($FaultClassId -ne 0) {
+    $vsimArgs += "+CONV_FAULT_CLASS_ID=$FaultClassId"
+    $vsimArgs += "+CONV_FAULT_CLASS_NAME=$FaultClassName"
+  }
+  $vsimArgs += @("-do", "run -all; quit -f")
+
   $result = Run-Cmd -Log $simLog -Command {
-    vsim -suppress 19 -suppress 8785 -c -lib $Lib top +UVM_NO_RELNOTES "+UVM_TESTNAME=$UvmTest" -do "run -all; quit -f"
+    vsim @vsimArgs
   }
 
   $errorOk = Has-Pattern $result.Lines ("UVM_ERROR\s*:\s*{0}" -f $ExpectedErrors)
@@ -398,8 +415,11 @@ $cases = @(
     UvmTest = "conv_l0_expected_smoke_test"
     ExpectedErrors = 2
     RunInAll = $false
+    FaultClassId = 1
+    FaultClassName = "l0_data"
     RequiredPatterns = @(
       "loaded layer0 expected file cnn_layer0_exp0.dat count=4096",
+      "fault_class=l0_data id=1 covered",
       "layer0 expected mismatch addr=123",
       "layer0 expected compare failed",
       "UVM_ERROR\s*:\s*2",
@@ -412,8 +432,11 @@ $cases = @(
     UvmTest = "conv_l1_expected_smoke_test"
     ExpectedErrors = 2
     RunInAll = $false
+    FaultClassId = 2
+    FaultClassName = "l1_data"
     RequiredPatterns = @(
       "loaded layer1 expected file cnn_layer1_exp0.dat count=1024",
+      "fault_class=l1_data id=2 covered",
       "layer1 expected mismatch addr=17",
       "layer1 expected compare failed pass=1023 mismatch=1 expected=1024",
       "UVM_ERROR\s*:\s*2",
@@ -426,9 +449,12 @@ $cases = @(
     UvmTest = "conv_protocol_csel_fault_test"
     ExpectedErrors = 2
     RunInAll = $false
+    FaultClassId = 3
+    FaultClassName = "illegal_csel"
     RequiredPatterns = @(
       "protocol checker enabled",
       "sva protocol checker enabled",
+      "fault_class=illegal_csel id=3 covered",
       "observed layer0 write",
       "\[CWR_ILLEGAL_CSEL\] cwr requires csel 001 or 011, got 010",
       "\[SVA_CWR_ILLEGAL_CSEL\] cwr requires csel 001 or 011, got 010",
@@ -442,7 +468,10 @@ $cases = @(
     UvmTest = "conv_l0_address_map_smoke_test"
     ExpectedErrors = 1
     RunInAll = $false
+    FaultClassId = 4
+    FaultClassName = "missing_l0"
     RequiredPatterns = @(
+      "fault_class=missing_l0 id=4 covered",
       "\[L0_ADDR_MISSING\] missing layer0 write address=123",
       "layer0 address map failed unique=4095 missing=1 expected=4096",
       "observed expected layer0 write count=4095",
@@ -456,7 +485,10 @@ $cases = @(
     UvmTest = "conv_l1_address_map_smoke_test"
     ExpectedErrors = 2
     RunInAll = $false
+    FaultClassId = 5
+    FaultClassName = "duplicate_l1"
     RequiredPatterns = @(
+      "fault_class=duplicate_l1 id=5 covered",
       "\[L1_ADDR_DUPLICATE\] duplicate layer1 write address=0",
       "\[L1_ADDR_MISSING\] missing layer1 write address=1",
       "layer1 address map failed unique=1023 duplicate=1 missing=1 expected=1024",
@@ -471,7 +503,10 @@ $cases = @(
     UvmTest = "conv_layer1_path_smoke_test"
     ExpectedErrors = 2
     RunInAll = $false
+    FaultClassId = 6
+    FaultClassName = "l1_addr_oob"
     RequiredPatterns = @(
+      "fault_class=l1_addr_oob id=6 covered",
       "\[L1_ADDR_OOB\] layer1 write address out of range=1024",
       "\[SVA_L1_ADDR_OOB\] layer1 write address out of range=1024",
       "observed layer1 write",
@@ -485,7 +520,10 @@ $cases = @(
     UvmTest = "conv_reset_protocol_fault_test"
     ExpectedErrors = 2
     RunInAll = $false
+    FaultClassId = 7
+    FaultClassName = "reset_protocol"
     RequiredPatterns = @(
+      "fault_class=reset_protocol id=7 covered",
       "\[RESET_CWR\] cwr must be low while reset is asserted",
       "\[SVA_RESET_CWR\] cwr must be low while reset is asserted",
       "received expected ready count=0",
@@ -499,7 +537,10 @@ $cases = @(
     UvmTest = "conv_ready_busy_timeout_test"
     ExpectedErrors = 2
     RunInAll = $false
+    FaultClassId = 8
+    FaultClassName = "ready_busy_timeout"
     RequiredPatterns = @(
+      "fault_class=ready_busy_timeout id=8 covered",
       "\[READY_BUSY_TIMEOUT\] busy did not assert within 8 cycles after ready",
       "\[SVA_READY_BUSY_TIMEOUT\] busy did not assert within 8 cycles after ready",
       "received expected ready count=1",
@@ -534,11 +575,22 @@ foreach ($case in $cases) {
     continue
   }
 
+  $faultClassId = 0
+  $faultClassName = "none"
+  if ($case.PSObject.Properties.Name -contains "FaultClassId") {
+    $faultClassId = $case.FaultClassId
+  }
+  if ($case.PSObject.Properties.Name -contains "FaultClassName") {
+    $faultClassName = $case.FaultClassName
+  }
+
   $ok = Run-SmokeCase `
     -Name $case.Name `
     -UvmTest $case.UvmTest `
     -ExpectedErrors $case.ExpectedErrors `
-    -RequiredPatterns $case.RequiredPatterns
+    -RequiredPatterns $case.RequiredPatterns `
+    -FaultClassId $faultClassId `
+    -FaultClassName $faultClassName
 
   if (!$ok) {
     $failed++
